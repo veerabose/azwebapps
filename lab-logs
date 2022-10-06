@@ -332,6 +332,63 @@ Completing the Guided Excercise: Managing a MySQL Container
  · Removing the solution directory.............................  SUCCESS
 [student@workstation ~]$ 
 
+--------------------------------------Create MySQL Container with Persistent
+Database-------------
+
+[student@workstation ~]$ lab manage-storage start
+
+Setting up workstation for the Guided Exercise: Persisting a MySQL Database
+
+ · Checking podman configuration...............................  SUCCESS
+ · Check if the directory used by lab is not created...........  SUCCESS
+[student@workstation ~]$ mkdir -vp /home/student/local/mysql
+mkdir: created directory '/home/student/local/mysql'
+[student@workstation ~]$ sudo semanage fcontext -a -t container_file_t '/home/student/local/mysql(/.*)?'
+ValueError: File context for /home/student/local/mysql(/.*)? already defined
+[student@workstation ~]$ sudo restorecon -R /home/student/local/mysql
+[student@workstation ~]$ ls -ldZ /home/student/local/mysql
+drwxrwxr-x. 2 student student unconfined_u:object_r:container_file_t:s0 6 Oct  6 12:43 /home/student/local/mysql
+[student@workstation ~]$ podman unshare chown 27:27 /home/student/local/mysql
+[student@workstation ~]$ podman login registry.redhat.io
+Username: veeraabose
+Password: 
+Login Succeeded!
+[student@workstation ~]$ podman pull registry.redhat.io/rhel8/mysql-80:1
+Trying to pull registry.redhat.io/rhel8/mysql-80:1...
+Getting image source signatures
+Checking if image destination supports signatures
+Copying blob 36bead343ed7 done  
+Copying blob 809fe483e885 done  
+Copying blob 1770f4614fe5 done  
+Copying blob 1b3417e31a5e done  
+Copying config b5b0298033 done  
+Writing manifest to image destination
+Storing signatures
+b5b0298033611d0c00b66d8664f60997908e9b8ec0e131a5a124783879951bf2
+[student@workstation ~]$ podman images
+REPOSITORY                         TAG         IMAGE ID      CREATED     SIZE
+registry.redhat.io/rhel8/mysql-80  1           b5b029803361  2 days ago  624 MB
+[student@workstation ~]$ podman run --name persist-db -d -v /home/student/local/mysql:/var/lib/mysql/data -e MYSQL_USER=user1 -e MYSQL_PASSWORD=mypa55 -e MYSQL_DATABASE=items -e MYSQL_ROOT_PASSWORD=r00tpa55 registry.redhat.io/rhel8/mysql-80:1
+8d709d45239b043b104a4c137de4bdfaf5470ab7c4755cfc73d7073eb841491f
+[student@workstation ~]$ podman ps
+CONTAINER ID  IMAGE                                COMMAND     CREATED        STATUS            PORTS       NAMES
+8d709d45239b  registry.redhat.io/rhel8/mysql-80:1  run-mysqld  8 seconds ago  Up 8 seconds ago              persist-db
+[student@workstation ~]$ podman ps --format="{{.ID}} {{.Names}} {{.Status}}"
+8d709d45239b persist-db Up 38 seconds ago
+[student@workstation ~]$ ls -ld /home/student/local/mysql/items
+drwxr-x---. 2 100026 100026 6 Oct  6 12:49 /home/student/local/mysql/items
+[student@workstation ~]$ date
+Thu Oct  6 12:50:38 EDT 2022
+[student@workstation ~]$ lab manage-storage finish
+
+Completing the Guided Exercise: Persisting a MySQL Database
+
+ · Stopping 'persist-db' container.............................  SUCCESS
+ · Removing 'persist-db' container.............................  SUCCESS
+ · Removing the 'registry.redhat.io/rhel8/mysql-80:1' image....  SUCCESS
+ · Removing the /home/student/local/mysql directory............  SUCCESS
+ · Removing the fcontext for /home/student/local/mysql.........  SUCCESS
+[student@workstation ~]$ 
 
 
 
