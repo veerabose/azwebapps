@@ -930,3 +930,178 @@ In this chapter, you learned:
 compressed files.
 • Use the podman commit command to create an image from a container.
 
+-----------------CH5--Guided Exercise--------.Creating a Basic Apache Container Image-------------
+[student@workstation ~]$ lab dockerfile-create start
+
+Setting up workstation for the Guided Exercise: Building a basic Apache Container Image
+
+ · Checking podman configuration...............................  SUCCESS
+ · Downloading starter project.................................  SUCCESS
+ · Downloading solution project................................  SUCCESS
+
+Setup successful. Please proceed with the exercise.
+
+[student@workstation ~]$ vim ~/DO180/labs/dockerfile-create/Containerfile
+[student@workstation ~]$ cat !$
+cat ~/DO180/labs/dockerfile-create/Containerfile
+FROM ubi8/ubi:8.5
+MAINTAINER Your Name veera
+LABEL description="A custom Apache container based on UBI 8"
+RUN yum install -y httpd && yum clean all
+RUN echo "Hello from Containerfile" > /var/www/html/index.html
+EXPOSE 80
+CMD ["httpd", "-D", "FOREGROUND"]
+[student@workstation ~]$ cd ~/DO180/labs/dockerfile-create
+[student@workstation dockerfile-create]$ ls
+Containerfile
+[student@workstation dockerfile-create]$ podman build --layers=false -t do180/apache .
+STEP 1/7: FROM ubi8/ubi:8.5
+Resolved "ubi8/ubi" as an alias (/etc/containers/registries.conf.d/001-rhel-shortnames.conf)
+Trying to pull registry.access.redhat.com/ubi8/ubi:8.5...
+Getting image source signatures
+Checking if image destination supports signatures
+Copying blob 19b323993c37 done  
+Copying blob b3c5b1f89131 done  
+Copying config 202c1768b1 done  
+Writing manifest to image destination
+Storing signatures
+STEP 2/7: MAINTAINER Your Name veera
+STEP 3/7: LABEL description="A custom Apache container based on UBI 8"
+STEP 4/7: RUN yum install -y httpd && yum clean all
+Updating Subscription Management repositories.
+Unable to read consumer identity
+Subscription Manager is operating in container mode.
+
+This system is not registered with an entitlement server. You can use subscription-manager to register.
+
+Red Hat Universal Base Image 8 (RPMs) - BaseOS  446 kB/s | 803 kB     00:01    
+Red Hat Universal Base Image 8 (RPMs) - AppStre 2.6 MB/s | 3.0 MB     00:01    
+Red Hat Universal Base Image 8 (RPMs) - CodeRea  17 kB/s |  20 kB     00:01    
+Last metadata expiration check: 0:00:01 ago on Sun Oct  9 17:40:09 2022.
+Dependencies resolved.
+==============================================================================================
+ Package              Arch    Version                                   Repository        Size
+==============================================================================================
+Installing:
+ httpd                x86_64  2.4.37-47.module+el8.6.0+15654+427eba2e.2 ubi-8-appstream  1.4 M
+Installing dependencies:
+ apr                  x86_64  1.6.3-12.el8                              ubi-8-appstream  130 k
+ apr-util             x86_64  1.6.1-6.el8                               ubi-8-appstream  105 k
+ httpd-filesystem     noarch  2.4.37-47.module+el8.6.0+15654+427eba2e.2 ubi-8-appstream   41 k
+ httpd-tools          x86_64  2.4.37-47.module+el8.6.0+15654+427eba2e.2 ubi-8-appstream  108 k
+ mailcap              noarch  2.1.48-3.el8                              ubi-8-baseos      39 k
+ mod_http2            x86_64  1.15.7-5.module+el8.6.0+13996+01710940    ubi-8-appstream  155 k
+ redhat-logos-httpd   noarch  84.5-1.el8                                ubi-8-baseos      29 k
+Installing weak dependencies:
+ apr-util-bdb         x86_64  1.6.1-6.el8                               ubi-8-appstream   25 k
+ apr-util-openssl     x86_64  1.6.1-6.el8                               ubi-8-appstream   27 k
+Enabling module streams:
+ httpd                        2.4                                                             
+
+Transaction Summary
+==============================================================================================
+Install  10 Packages
+
+Total download size: 2.1 M
+Installed size: 5.5 M
+Downloading Packages:
+(1/10): mailcap-2.1.48-3.el8.noarch.rpm         1.0 MB/s |  39 kB     00:00    
+(2/10): redhat-logos-httpd-84.5-1.el8.noarch.rp 660 kB/s |  29 kB     00:00    
+(3/10): apr-util-1.6.1-6.el8.x86_64.rpm          11 MB/s | 105 kB     00:00    
+(4/10): apr-1.6.3-12.el8.x86_64.rpm             2.7 MB/s | 130 kB     00:00    
+(5/10): apr-util-openssl-1.6.1-6.el8.x86_64.rpm 7.8 MB/s |  27 kB     00:00    
+(6/10): mod_http2-1.15.7-5.module+el8.6.0+13996  32 MB/s | 155 kB     00:00    
+(7/10): apr-util-bdb-1.6.1-6.el8.x86_64.rpm     5.2 MB/s |  25 kB     00:00    
+(8/10): httpd-tools-2.4.37-47.module+el8.6.0+15  20 MB/s | 108 kB     00:00    
+(9/10): httpd-filesystem-2.4.37-47.module+el8.6 8.2 MB/s |  41 kB     00:00    
+(10/10): httpd-2.4.37-47.module+el8.6.0+15654+4  92 MB/s | 1.4 MB     00:00    
+--------------------------------------------------------------------------------
+Total                                            29 MB/s | 2.1 MB     00:00     
+Running transaction check
+Transaction check succeeded.
+Running transaction test
+Transaction test succeeded.
+Running transaction
+  Preparing        :                                                        1/1 
+  Installing       : apr-1.6.3-12.el8.x86_64                               1/10 
+  Running scriptlet: apr-1.6.3-12.el8.x86_64                               1/10 
+  Installing       : apr-util-openssl-1.6.1-6.el8.x86_64                   2/10 
+  Installing       : apr-util-bdb-1.6.1-6.el8.x86_64                       3/10 
+  Installing       : apr-util-1.6.1-6.el8.x86_64                           4/10 
+  Running scriptlet: apr-util-1.6.1-6.el8.x86_64                           4/10 
+  Installing       : httpd-tools-2.4.37-47.module+el8.6.0+15654+427eba2    5/10 
+  Running scriptlet: httpd-filesystem-2.4.37-47.module+el8.6.0+15654+42    6/10 
+  Installing       : httpd-filesystem-2.4.37-47.module+el8.6.0+15654+42    6/10 
+  Installing       : mailcap-2.1.48-3.el8.noarch                           7/10 
+  Installing       : redhat-logos-httpd-84.5-1.el8.noarch                  8/10 
+  Installing       : mod_http2-1.15.7-5.module+el8.6.0+13996+01710940.x    9/10 
+  Installing       : httpd-2.4.37-47.module+el8.6.0+15654+427eba2e.2.x8   10/10 
+  Running scriptlet: httpd-2.4.37-47.module+el8.6.0+15654+427eba2e.2.x8   10/10 
+  Verifying        : redhat-logos-httpd-84.5-1.el8.noarch                  1/10 
+  Verifying        : mailcap-2.1.48-3.el8.noarch                           2/10 
+  Verifying        : apr-1.6.3-12.el8.x86_64                               3/10 
+  Verifying        : apr-util-1.6.1-6.el8.x86_64                           4/10 
+  Verifying        : apr-util-openssl-1.6.1-6.el8.x86_64                   5/10 
+  Verifying        : mod_http2-1.15.7-5.module+el8.6.0+13996+01710940.x    6/10 
+  Verifying        : apr-util-bdb-1.6.1-6.el8.x86_64                       7/10 
+  Verifying        : httpd-tools-2.4.37-47.module+el8.6.0+15654+427eba2    8/10 
+  Verifying        : httpd-2.4.37-47.module+el8.6.0+15654+427eba2e.2.x8    9/10 
+  Verifying        : httpd-filesystem-2.4.37-47.module+el8.6.0+15654+42   10/10 
+Installed products updated.
+
+Installed:
+  apr-1.6.3-12.el8.x86_64                                                       
+  apr-util-1.6.1-6.el8.x86_64                                                   
+  apr-util-bdb-1.6.1-6.el8.x86_64                                               
+  apr-util-openssl-1.6.1-6.el8.x86_64                                           
+  httpd-2.4.37-47.module+el8.6.0+15654+427eba2e.2.x86_64                        
+  httpd-filesystem-2.4.37-47.module+el8.6.0+15654+427eba2e.2.noarch             
+  httpd-tools-2.4.37-47.module+el8.6.0+15654+427eba2e.2.x86_64                  
+  mailcap-2.1.48-3.el8.noarch                                                   
+  mod_http2-1.15.7-5.module+el8.6.0+13996+01710940.x86_64                       
+  redhat-logos-httpd-84.5-1.el8.noarch                                          
+
+Complete!
+Updating Subscription Management repositories.
+Unable to read consumer identity
+Subscription Manager is operating in container mode.
+
+This system is not registered with an entitlement server. You can use subscription-manager to register.
+
+25 files removed
+STEP 5/7: RUN echo "Hello from Containerfile" > /var/www/html/index.html
+STEP 6/7: EXPOSE 80
+STEP 7/7: CMD ["httpd", "-D", "FOREGROUND"]
+COMMIT do180/apache
+Getting image source signatures
+Copying blob 3813924f3fa4 skipped: already exists  
+Copying blob c86122b5e4d3 skipped: already exists  
+Copying blob 230228eebc2e done  
+Copying config 7f9154b1b6 done  
+Writing manifest to image destination
+Storing signatures
+--> 7f9154b1b60
+Successfully tagged localhost/do180/apache:latest
+7f9154b1b6054ce505811b99d68ec36ce6905802a48b04bd2bb44ffcf191d3ab
+[student@workstation dockerfile-create]$ podman images
+REPOSITORY                           TAG         IMAGE ID      CREATED        SIZE
+localhost/do180/apache               latest      7f9154b1b605  6 minutes ago  257 MB
+registry.access.redhat.com/ubi8/ubi  8.5         202c1768b1f7  5 months ago   235 MB
+[student@workstation dockerfile-create]$ podman run --name lab-apache -d -p 10080:80 do180/apache
+f95d2cf65dd46cdb23c3f7b07a237dd8e3d9a071cc7f000cb32522ea5dd69b04
+[student@workstation dockerfile-create]$ podman ps
+CONTAINER ID  IMAGE                          COMMAND               CREATED         STATUS             PORTS                  NAMES
+f95d2cf65dd4  localhost/do180/apache:latest  httpd -D FOREGROU...  17 seconds ago  Up 17 seconds ago  0.0.0.0:10080->80/tcp  lab-apache
+[student@workstation dockerfile-create]$ curl -s 127.0.0.1:10080
+Hello from Containerfile
+[student@workstation dockerfile-create]$ lab dockerfile-create finish
+
+Completing the Guided Exercise: Building a basic Apache Container Image
+
+ · Stopping lab-apache container that is running...............  SUCCESS
+ · Removing lab-apache container that is in the cache..........  SUCCESS
+ · Removing do180/apache custom container image................  SUCCESS
+ · Removing UBI8 container image...............................  SUCCESS
+[student@workstation dockerfile-create]$ 
+
+-----------------------------------------------------Lab- Creating Custom Container Images----------
