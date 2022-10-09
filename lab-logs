@@ -776,3 +776,157 @@ Completing the GE: Creating a Custom Apache Container Image
  · Removing localhost/do180-custom-httpd image.................  SUCCESS
 [student@workstation ~]$ 
 
+
+-----------------Ch4 - Lab ----------------------------------------------------------
+[student@workstation ~]$ lab image-review start
+
+Setting up workstation for the Lab: Managing Images
+
+ · Checking podman configuration...............................  SUCCESS
+[student@workstation ~]$ podman pull quay.io/redhattraining/nginx:1.17
+Trying to pull quay.io/redhattraining/nginx:1.17...
+Getting image source signatures
+Copying blob b00ee4473ca6 skipped: already exists  
+Copying blob d1a81ca518e2 skipped: already exists  
+Copying blob c78335199707 skipped: already exists  
+Copying config 9beeba249f done  
+Writing manifest to image destination
+Storing signatures
+9beeba249f3ee158d3e495a6ac25c5667ae2de8a43ac2a8bfd2bf687a58c06c9
+[student@workstation ~]$ podman images
+REPOSITORY                    TAG         IMAGE ID      CREATED      SIZE
+quay.io/redhattraining/nginx  1.17        9beeba249f3e  2 years ago  131 MB
+[student@workstation ~]$ podman run --name official-nginx -d -p 8080:80 quay.io/redhattraining/nginx:1.17
+Error: error creating container storage: the container name "official-nginx" is already in use by "38bb58ad3f8734d4fcaac03d5620d7ae567db6fc1f76de378f94f8ce68498dd1". You have to remove that container to be able to reuse that name.: that name is already in use
+[student@workstation ~]$ podman rm -f official-nginx 
+38bb58ad3f8734d4fcaac03d5620d7ae567db6fc1f76de378f94f8ce68498dd1
+[student@workstation ~]$ podman run --name official-nginx -d -p 8080:80 quay.io/redhattraining/nginx:1.17
+24acad6eb003f0885651d33b353021d3453e2a6debb034b92f08e29a55264718
+[student@workstation ~]$ podman exec -it official-nginx /bin/bash
+root@24acad6eb003:/# cat /usr/share/nginx/html/index.html 
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+    body {
+        width: 35em;
+        margin: 0 auto;
+        font-family: Tahoma, Verdana, Arial, sans-serif;
+    }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.</p>
+
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+Commercial support is available at
+<a href="http://nginx.com/">nginx.com</a>.</p>
+
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+root@24acad6eb003:/# echo 'DO180' > /usr/share/nginx/html/index.html
+root@24acad6eb003:/# cat /usr/share/nginx/html/index.html 
+DO180
+root@24acad6eb003:/# exit
+exit
+[student@workstation ~]$ curl 127.0.0.1:8080
+DO180
+[student@workstation ~]$ podman stop official-nginx
+official-nginx
+[student@workstation ~]$ podman commit -a 'veera' official-nginx do180/mynginx:v1.0-SNAPSHOT
+Getting image source signatures
+Copying blob ffc9b21953f4 skipped: already exists  
+Copying blob 2f4accd375d9 skipped: already exists  
+Copying blob 6c7de695ede3 skipped: already exists  
+Copying blob fefe293d37ac done  
+Copying config b6710f5af7 done  
+Writing manifest to image destination
+Storing signatures
+b6710f5af796b1d886012872824d28b3e07891dae7c72113d7592a26bb0866b1
+[student@workstation ~]$ podman images
+REPOSITORY                    TAG            IMAGE ID      CREATED         SIZE
+localhost/do180/mynginx       v1.0-SNAPSHOT  b6710f5af796  28 seconds ago  131 MB
+quay.io/redhattraining/nginx  1.17           9beeba249f3e  2 years ago     131 MB
+[student@workstation ~]$ podman run --name official-nginx-dev -d -p 8080:80 do180/mynginx:v1.0-SNAPSHOT
+b1b288b3eeec628bc5ea8155e059380c08b6e6dcfac0e2dc063fde9748e73526
+[student@workstation ~]$ podman ps
+CONTAINER ID  IMAGE                                  COMMAND               CREATED        STATUS            PORTS                 NAMES
+b1b288b3eeec  localhost/do180/mynginx:v1.0-SNAPSHOT  nginx -g daemon o...  7 seconds ago  Up 8 seconds ago  0.0.0.0:8080->80/tcp  official-nginx-dev
+[student@workstation ~]$ podman exec -it official-nginx-dev /bin/bash
+root@b1b288b3eeec:/# cat /usr/share/nginx/html/index.html 
+DO180
+root@b1b288b3eeec:/# echo 'DO180 Page' > /usr/share/nginx/html/index.html
+root@b1b288b3eeec:/# exit
+exit
+[student@workstation ~]$ podman stop official-nginx-dev
+official-nginx-dev
+[student@workstation ~]$ podman commit -a 'veera' official-nginx-dev do180/mynginx:v1.0
+Getting image source signatures
+Copying blob ffc9b21953f4 skipped: already exists  
+Copying blob 2f4accd375d9 skipped: already exists  
+Copying blob 6c7de695ede3 skipped: already exists  
+Copying blob fefe293d37ac skipped: already exists  
+Copying blob aaf4fa91f1ff done  
+Copying config 9f4c6deb97 done  
+Writing manifest to image destination
+Storing signatures
+9f4c6deb9792a13f121da1a44a259612d635090fd3835070fdee8a0a1e4588a5
+[student@workstation ~]$ podman images
+REPOSITORY                    TAG            IMAGE ID      CREATED         SIZE
+localhost/do180/mynginx       v1.0           9f4c6deb9792  26 seconds ago  131 MB
+localhost/do180/mynginx       v1.0-SNAPSHOT  b6710f5af796  7 minutes ago   131 MB
+quay.io/redhattraining/nginx  1.17           9beeba249f3e  2 years ago     131 MB
+[student@workstation ~]$ podman ps -a --format="{{.ID}} {{.Names}} {{.Status}}"
+24acad6eb003 official-nginx Exited (0) 9 minutes ago
+b1b288b3eeec official-nginx-dev Exited (0) About a minute ago
+[student@workstation ~]$ podman rm official-nginx-dev
+b1b288b3eeec628bc5ea8155e059380c08b6e6dcfac0e2dc063fde9748e73526
+[student@workstation ~]$ podman ps -a --format="{{.ID}} {{.Names}} {{.Status}}"
+24acad6eb003 official-nginx Exited (0) 9 minutes ago
+[student@workstation ~]$ podman rmi do180/mynginx:v1.0-SNAPSHOT
+Untagged: localhost/do180/mynginx:v1.0-SNAPSHOT
+[student@workstation ~]$ podman images
+REPOSITORY                    TAG         IMAGE ID      CREATED        SIZE
+localhost/do180/mynginx       v1.0        9f4c6deb9792  2 minutes ago  131 MB
+quay.io/redhattraining/nginx  1.17        9beeba249f3e  2 years ago    131 MB
+[student@workstation ~]$ podman run -d --name my-nginx -p 8280:80 do180/mynginx:v1.0
+66246ea705e0b8cb1f42199ea302f0b8f081c9446b18a4a51195d7c4a2fed8fa
+[student@workstation ~]$ curl 127.0.0.1:8280
+DO180 Page
+[student@workstation ~]$ lab image-review grade
+
+Grading the student's work for the Lab: Managing Images
+
+ · Nginx container image is pulled.............................  PASS
+ · Container official-nginx is created.........................  PASS
+ · Container official-nginx is stopped.........................  PASS
+ · Tag do180/mynginx:v1.0-SNAPSHOT is removed..................  PASS
+ · Tag do180/mynginx:v1.0 is created...........................  PASS
+ · Container my-nginx is created and running...................  PASS
+ · index.html is available with the custom content.............  PASS
+[student@workstation ~]$ lab image-review finish
+
+Completing the Lab: Managing Images
+
+ · Stopping official-nginx-dev container.......................  SUCCESS
+ · Removing official-nginx-dev container.......................  SUCCESS
+ · Stopping official-nginx container...........................  SUCCESS
+ · Removing official-nginx container...........................  SUCCESS
+ · Removing do180/mynginx:v1.0 image...........................  SUCCESS
+ · Removing quay.io/redhattraining/nginx:1.17 image............  SUCCESS
+[student@workstation ~]$ 
+
+Summary
+In this chapter, you learned:
+.• The Red Hat Container Catalog provides tested and certified images at registry.redhat.io.
+• Podman can interact with remote container registries to search, pull, and push container images.
+• Image tags are a mechanism to support multiple releases of a container image.
+• Podman provides commands to manage container images both in local storage and as
+compressed files.
+• Use the podman commit command to create an image from a container.
+
