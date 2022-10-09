@@ -641,5 +641,17 @@ Completing the Lab: Managing Containers
  · Removing the solution directory.............................  SUCCESS
 [student@workstation ~]$ 
 
+Summary
+-----------
+In this chapter, you learned:
+• Podman has subcommands to: create a new container (run), delete a container (rm), list
+containers (ps), stop a container (stop), and start a process in a container (exec).
+• Default container storage is ephemeral, meaning its contents are not present after the container
+is removed.
+• Containers can use a folder from the host file system to work with persistent data.
+• Podman mounts volumes in a container with the -v option in the podman run command.
+• The podman exec command starts an additional process inside a running container.
 
+-----------------------Chapter 4 -----------------------------------------------
+• Podman maps local ports to container ports by using the -p option in the run subcommand.
 
