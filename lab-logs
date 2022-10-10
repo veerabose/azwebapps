@@ -1666,3 +1666,5 @@ Completing the Guided Exercise: Exposing a Service as a Route
  · Removing OpenShift project 'developer-route'................  SUCCESS
 [student@workstation ~]$ 
 
+--------------------------------GE--Creating a Containerized Application with Source-to-Image-CH6-----------------------
+ Updates were rejected because the tip of your current branch is behind
