@@ -1279,3 +1279,247 @@ Completing the Guided Exercise: Building a basic Apache Container Image
 [student@workstation dockerfile-create]$ 
 
 --------------------------------------------------CH6 10Oct22---------
+GE-Deploying a Database Server on OpenShift
+------------------------------------------------------------------------
+[student@workstation ~]$ lab openshift-resources start
+
+Setting up workstation for the Guided Exercise: Deploying a Database Server on OpenShift
+
+ Verifying the OpenShift cluster is running:
+ · Log in on OpenShift.........................................  SUCCESS
+ · Check the internal registry is up and running...............  SUCCESS
+ · Ensuring the 'developer-mysql-openshift' project is absent..  SUCCESS
+[student@workstation ~]$ source /usr/local/etc/ocp4.config
+[student@workstation ~]$ cat !$
+cat /usr/local/etc/ocp4.config
+RHT_OCP4_MASTER_API=https://api.ocp4.example.com:6443
+RHT_OCP4_WILDCARD_DOMAIN=apps.ocp4.example.com
+RHT_OCP4_NEXUS_SERVER=nexus-common.apps.ocp4.example.com
+RHT_OCP4_DEV_USER=developer
+RHT_OCP4_DEV_PASSWORD=developer
+RHT_OCP4_GITHUB_USER=veerabose
+RHT_OCP4_QUAY_USER=veeraabose
+RHT_OCP4_USER_PASSWD=redhat
+[student@workstation ~]$ oc login -u ${RHT_OCP4_DEV_USER} -p ${RHT_OCP4_DEV_PASSWORD} ${RHT_OCP4_MASTER_API}
+Login successful.
+
+You don't have any projects. You can try to create a new project, by running
+
+    oc new-project <projectname>
+
+[student@workstation ~]$ oc new-project ${RHT_OCP4_DEV_USER}-mysql-openshift
+Now using project "developer-mysql-openshift" on server "https://api.ocp4.example.com:6443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app rails-postgresql-example
+
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=k8s.gcr.io/e2e-test-images/agnhost:2.33 -- /agnhost serve-hostname
+
+[student@workstation ~]$ oc et projet
+error: unknown command "et" for "oc"
+
+Did you mean this?
+	cp
+	edit
+	get
+	set
+[student@workstation ~]$ oc get projects
+NAME                        DISPLAY NAME   STATUS
+developer-mysql-openshift                  Active
+[student@workstation ~]$ oc get templates
+No resources found in developer-mysql-openshift namespace.
+[student@workstation ~]$ oc new-app --template=mysql-persistent -p MYSQL_USER=user1 -p MYSQL_PASSWORD=mypa55 -p MYSQL_DATABASE=testdb -p MYSQL_ROOT_PASSWORD=r00tpa55 -p VOLUME_CAPACITY=10Gi
+--> Deploying template "openshift/mysql-persistent" to project developer-mysql-openshift
+
+     MySQL
+     ---------
+     MySQL database service, with persistent storage. For more information about using this template, including OpenShift considerations, see https://github.com/sclorg/mysql-container/blob/master/8.0/root/usr/share/container-scripts/mysql/README.md.
+     
+     NOTE: Scaling to more than one replica is not supported. You must have persistent volumes available in your cluster to use this template.
+
+     The following service(s) have been created in your project: mysql.
+     
+            Username: user1
+            Password: mypa55
+       Database Name: testdb
+      Connection URL: mysql://mysql:3306/
+     
+     For more information about using this template, including OpenShift considerations, see https://github.com/sclorg/mysql-container/blob/master/8.0/root/usr/share/container-scripts/mysql/README.md.
+
+     * With parameters:
+        * Memory Limit=512Mi
+        * Namespace=openshift
+        * Database Service Name=mysql
+        * MySQL Connection Username=user1
+        * MySQL Connection Password=mypa55
+        * MySQL root user Password=r00tpa55
+        * MySQL Database Name=testdb
+        * Volume Capacity=10Gi
+        * Version of MySQL Image=8.0-el8
+
+--> Creating resources ...
+    secret "mysql" created
+    service "mysql" created
+    persistentvolumeclaim "mysql" created
+    deploymentconfig.apps.openshift.io "mysql" created
+--> Success
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose service/mysql' 
+    Run 'oc status' to view your app.
+[student@workstation ~]$ oc status
+In project developer-mysql-openshift on server https://api.ocp4.example.com:6443
+
+svc/mysql - 172.30.198.205:3306
+  dc/mysql deploys openshift/mysql:8.0-el8 
+    deployment #1 running for 34 seconds - 0/1 pods
+
+View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.
+[student@workstation ~]$ oc get all
+NAME                 READY   STATUS      RESTARTS   AGE
+pod/mysql-1-deploy   0/1     Completed   0          52s
+pod/mysql-1-q8vc8    1/1     Running     0          40s
+
+NAME                            DESIRED   CURRENT   READY   AGE
+replicationcontroller/mysql-1   1         1         1       52s
+
+NAME            TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+service/mysql   ClusterIP   172.30.198.205   <none>        3306/TCP   54s
+
+NAME                                       REVISION   DESIRED   CURRENT   TRIGGERED BY
+deploymentconfig.apps.openshift.io/mysql   1          1         1         config,image(mysql:8.0-el8)
+[student@workstation ~]$ oc describe pod pod/mysql-1-deploy
+error: there is no need to specify a resource type as a separate argument when passing arguments in resource/name form (e.g. 'oc get resource/<resource_name>' instead of 'oc get resource resource/<resource_name>'
+[student@workstation ~]$ oc describe pod/mysql-1-deploy
+Name:         mysql-1-deploy
+Namespace:    developer-mysql-openshift
+Priority:     0
+Node:         master01/192.168.50.10
+Start Time:   Mon, 10 Oct 2022 01:33:25 -0400
+Labels:       openshift.io/deployer-pod-for.name=mysql-1
+Annotations:  k8s.v1.cni.cncf.io/network-status:
+                [{
+                    "name": "openshift-sdn",
+                    "interface": "eth0",
+                    "ips": [
+                        "10.9.0.21"
+                    ],
+                    "default": true,
+                    "dns": {}
+                }]
+              k8s.v1.cni.cncf.io/networks-status:
+                [{
+                    "name": "openshift-sdn",
+                    "interface": "eth0",
+                    "ips": [
+                        "10.9.0.21"
+                    ],
+                    "default": true,
+                    "dns": {}
+                }]
+              openshift.io/deployment-config.name: mysql
+              openshift.io/deployment.name: mysql-1
+              openshift.io/scc: restricted
+Status:       Succeeded
+IP:           10.9.0.21
+IPs:
+  IP:  10.9.0.21
+Containers:
+  deployment:
+    Container ID:   cri-o://f951059b1d946302ce37e68c9bc359101a78196daa45b7a0ae4f7643faa12b81
+    Image:          quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:9439e3e873a7b9005d08f0afc33b13252c4fe79630496d11cd659ca7327d96f6
+    Image ID:       quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:9439e3e873a7b9005d08f0afc33b13252c4fe79630496d11cd659ca7327d96f6
+    Port:           <none>
+    Host Port:      <none>
+    State:          Terminated
+      Reason:       Completed
+      Exit Code:    0
+      Started:      Mon, 10 Oct 2022 01:33:36 -0400
+      Finished:     Mon, 10 Oct 2022 01:34:08 -0400
+    Ready:          False
+    Restart Count:  0
+    Environment:
+      OPENSHIFT_DEPLOYMENT_NAME:       mysql-1
+      OPENSHIFT_DEPLOYMENT_NAMESPACE:  developer-mysql-openshift
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-b4clm (ro)
+Conditions:
+  Type              Status
+  Initialized       True 
+  Ready             False 
+  ContainersReady   False 
+  PodScheduled      True 
+Volumes:
+  kube-api-access-b4clm:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    ConfigMapOptional:       <nil>
+    DownwardAPI:             true
+    ConfigMapName:           openshift-service-ca.crt
+    ConfigMapOptional:       <nil>
+QoS Class:                   BestEffort
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type    Reason          Age    From               Message
+  ----    ------          ----   ----               -------
+  Normal  Scheduled       2m41s  default-scheduler  Successfully assigned developer-mysql-openshift/mysql-1-deploy to master01
+  Normal  AddedInterface  2m39s  multus             Add eth0 [10.9.0.21/23] from openshift-sdn
+  Normal  Pulling         2m39s  kubelet            Pulling image "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:9439e3e873a7b9005d08f0afc33b13252c4fe79630496d11cd659ca7327d96f6"
+  Normal  Pulled          2m30s  kubelet            Successfully pulled image "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:9439e3e873a7b9005d08f0afc33b13252c4fe79630496d11cd659ca7327d96f6" in 9.426959183s
+  Normal  Created         2m30s  kubelet            Created container deployment
+  Normal  Started         2m30s  kubelet            Started container deployment
+[student@workstation ~]$ oc get svc
+NAME    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+mysql   ClusterIP   172.30.198.205   <none>        3306/TCP   4m17s
+[student@workstation ~]$ oc describe service mysql
+Name:              mysql
+Namespace:         developer-mysql-openshift
+Labels:            app=mysql-persistent
+                   app.kubernetes.io/component=mysql-persistent
+                   app.kubernetes.io/instance=mysql-persistent
+                   template=mysql-persistent-template
+Annotations:       openshift.io/generated-by: OpenShiftNewApp
+                   template.openshift.io/expose-uri: mysql://{.spec.clusterIP}:{.spec.ports[?(.name=="mysql")].port}
+Selector:          name=mysql
+Type:              ClusterIP
+IP Family Policy:  SingleStack
+IP Families:       IPv4
+IP:                172.30.198.205
+IPs:               172.30.198.205
+Port:              mysql  3306/TCP
+TargetPort:        3306/TCP
+Endpoints:         10.9.0.22:3306
+Session Affinity:  None
+Events:            <none>
+[student@workstation ~]$ oc get pvc
+NAME    STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+mysql   Bound    pvc-922bdda2-59d4-4bd5-9cb2-7bd61205d195   10Gi       RWO            nfs-storage    6m41s
+[student@workstation ~]$ oc get pv
+Error from server (Forbidden): persistentvolumes is forbidden: User "developer" cannot list resource "persistentvolumes" in API group "" at the cluster scope
+[student@workstation ~]$ oc port-forward mysql-1-5vfn4 3306:3306
+Error from server (NotFound): pods "mysql-1-5vfn4" not found
+[student@workstation ~]$ oc get pod
+NAME             READY   STATUS      RESTARTS   AGE
+mysql-1-deploy   0/1     Completed   0          8m5s
+mysql-1-q8vc8    1/1     Running     0          7m53s
+[student@workstation ~]$ oc port-forward mysql-1-q8vc8 3306:3306
+Forwarding from 127.0.0.1:3306 -> 3306
+Forwarding from [::1]:3306 -> 3306
+
+^C[student@workstation ~]$ oc port-forward mysql-1-q8vc8 3306:3306
+Forwarding from 127.0.0.1:3306 -> 3306
+Forwarding from [::1]:3306 -> 3306
+Handling connection for 3306
+^C[student@workstation ~]$ oc delete project ${RHT_OCP4_DEV_USER}-mysql-openshift
+project.project.openshift.io "developer-mysql-openshift" deleted
+[student@workstation ~]$ lab openshift-resources finish
+
+Completing the Guided Exercise: Deploying a Database Server on OpenShift
+
+ · Deleting the 'developer-mysql-openshift' project............  SUCCESS
+[student@workstation ~]$ 
