@@ -2083,4 +2083,205 @@ Completing the Guided Excercise: Creating a Containerized Application with Sourc
  · Deleting the 'developer-s2i' project........................  SUCCESS
 [student@workstation php-helloworld]$ 
 
- 
+ --------------LAB 06 Deploying Containerized Applications on OpenShift----------
+ [student@workstation ~]$ lab openshift-review start
+
+Setting up workstation for the Lab: Deploying Containerized Applications on OpenShift
+
+ Verifying the OpenShift cluster is running:
+ · Log in on OpenShift.........................................  SUCCESS
+ · Check the internal registry is up and running...............  SUCCESS
+ · Ensuring the 'developer-ocp' project does not exist.........  SUCCESS
+
+[student@workstation ~]$ source /usr/local/etc/ocp4.config
+[student@workstation ~]$ oc login -u ${RHT_OCP4_DEV_USER} -p ${RHT_OCP4_DEV_PASSWORD} ${RHT_OCP4_MASTER_API}
+Login successful.
+
+You don't have any projects. You can try to create a new project, by running
+
+    oc new-project <projectname>
+
+[student@workstation ~]$ oc new-project ${RHT_OCP4_DEV_USER}-ocp
+Now using project "developer-ocp" on server "https://api.ocp4.example.com:6443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app rails-postgresql-example
+
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=k8s.gcr.io/e2e-test-images/agnhost:2.33 -- /agnhost serve-hostname
+
+[student@workstation ~]$ oc new-app php:7.3~https://github.com/RedHatTraining/DO180-apps --context-dir temps --name temps
+--> Found image 0d7c8b9 (3 months old) in image stream "openshift/php" under tag "7.3" for "php:7.3"
+
+    Apache 2.4 with PHP 7.3 
+    ----------------------- 
+    PHP 7.3 available as container is a base platform for building and running various PHP 7.3 applications and frameworks. PHP is an HTML-embedded scripting language. PHP attempts to make it easy for developers to write dynamically generated web pages. PHP also offers built-in database integration for several commercial and non-commercial database management systems, so writing a database-enabled webpage with PHP is fairly simple. The most common use of PHP coding is probably as a replacement for CGI scripts.
+
+    Tags: builder, php, php73, rh-php73
+
+    * A source build using source code from https://github.com/RedHatTraining/DO180-apps will be created
+      * The resulting image will be pushed to image stream tag "temps:latest"
+      * Use 'oc start-build' to trigger a new build
+
+--> Creating resources ...
+    imagestream.image.openshift.io "temps" created
+    buildconfig.build.openshift.io "temps" created
+    deployment.apps "temps" created
+    service "temps" created
+--> Success
+    Build scheduled, use 'oc logs -f buildconfig/temps' to track its progress.
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose service/temps' 
+    Run 'oc status' to view your app.
+[student@workstation ~]$ oc logs -f bc/temps
+Adding cluster TLS certificate authority to trust store
+Cloning "https://github.com/RedHatTraining/DO180-apps" ...
+	Commit:	f7cd8963ef353d9173c3a21dcccf402f3616840b (Initial commit, including all apps previously in course)
+	Author:	Jordi Sola <someth2say@gmail.com>
+	Date:	Fri Oct 4 13:04:03 2019 +0200
+Adding cluster TLS certificate authority to trust store
+Adding cluster TLS certificate authority to trust store
+time="2022-10-11T17:47:06Z" level=info msg="Not using native diff for overlay, this may cause degraded performance for building images: kernel has CONFIG_OVERLAY_FS_REDIRECT_DIR enabled"
+I1011 17:47:06.579323       1 defaults.go:102] Defaulting to storage driver "overlay" with options [mountopt=metacopy=on].
+Caching blobs under "/var/cache/blobs".
+Trying to pull image-registry.openshift-image-registry.svc:5000/openshift/php@sha256:8a55f47ae8a635e5dab3cbd63b404137ae25fc2aa5357abd1c3adfd355ebc510...
+Getting image source signatures
+Copying blob sha256:1cc60fbe16bd8c6d9af0ca63602331cb25bd68705ae0160dbaae1de6ac5457d3
+Copying blob sha256:6b5d6793adb89f3531e554d5066a6f7c5518cb9c8958f4c139713cbd7bacf30b
+Copying blob sha256:b8b9f4fbfc2dbc0a5c14a11cd3ee717cd2fb9c8b58499863ca111c9356af84d4
+Copying blob sha256:ffb0ffdba2a920e44896cc35806092f88cef747e2bb92cffc9538507dd9f5238
+Copying blob sha256:f6029bef86708a073e687c7ececb22245ee3cc2bff1dd9108e98e19469ac3c0f
+Copying config sha256:0d7c8b9be5d6986eddaba0f2e3c338594c64f75903ced01930661e5c9271d78a
+Writing manifest to image destination
+Storing signatures
+Generating dockerfile with builder image image-registry.openshift-image-registry.svc:5000/openshift/php@sha256:8a55f47ae8a635e5dab3cbd63b404137ae25fc2aa5357abd1c3adfd355ebc510
+Adding transient rw bind mount for /run/secrets/rhsm
+STEP 1/9: FROM image-registry.openshift-image-registry.svc:5000/openshift/php@sha256:8a55f47ae8a635e5dab3cbd63b404137ae25fc2aa5357abd1c3adfd355ebc510
+STEP 2/9: LABEL "io.openshift.build.commit.author"="Jordi Sola <someth2say@gmail.com>"       "io.openshift.build.commit.date"="Fri Oct 4 13:04:03 2019 +0200"       "io.openshift.build.commit.id"="f7cd8963ef353d9173c3a21dcccf402f3616840b"       "io.openshift.build.commit.ref"="master"       "io.openshift.build.commit.message"="Initial commit, including all apps previously in course"       "io.openshift.build.source-location"="https://github.com/RedHatTraining/DO180-apps"       "io.openshift.build.source-context-dir"="temps"       "io.openshift.build.image"="image-registry.openshift-image-registry.svc:5000/openshift/php@sha256:8a55f47ae8a635e5dab3cbd63b404137ae25fc2aa5357abd1c3adfd355ebc510"
+STEP 3/9: ENV OPENSHIFT_BUILD_NAME="temps-1"     OPENSHIFT_BUILD_NAMESPACE="developer-ocp"     OPENSHIFT_BUILD_SOURCE="https://github.com/RedHatTraining/DO180-apps"     OPENSHIFT_BUILD_COMMIT="f7cd8963ef353d9173c3a21dcccf402f3616840b"
+STEP 4/9: USER root
+STEP 5/9: COPY upload/src /tmp/src
+STEP 6/9: RUN chown -R 1001:0 /tmp/src
+STEP 7/9: USER 1001
+STEP 8/9: RUN /usr/libexec/s2i/assemble
+---> Installing application source...
+=> sourcing 20-copy-config.sh ...
+---> 17:47:20     Processing additional arbitrary httpd configuration provided by s2i ...
+=> sourcing 00-documentroot.conf ...
+=> sourcing 50-mpm-tuning.conf ...
+=> sourcing 40-ssl-certs.sh ...
+STEP 9/9: CMD /usr/libexec/s2i/run
+COMMIT temp.builder.openshift.io/developer-ocp/temps-1:cdd577ec
+time="2022-10-11T17:47:20Z" level=warning msg="Adding metacopy option, configured globally"
+Getting image source signatures
+Copying blob sha256:63c0270243d0ab5c36d4b250fbb9a7cee6e03e2391dcff38a405ad8553a6fe05
+Copying blob sha256:cbd5a225fe2d34dfab50eecfbd5bb1b99eefdbfe3903fc2afaab24b79b60ffe2
+Copying blob sha256:aba55b1131ca8729f8f118e018866d271512ccd5cfb03acbc7e33e9b4ab76411
+Copying blob sha256:1c027f3e4a1adeb5a3b7346a48471ba8e2091a0eb6363c4ff6f97561f5d38607
+Copying blob sha256:2907061238ee4021d20835d15e9b334891ee600f01466d31256bcce3c9262315
+Copying blob sha256:4bd6e2eabb42ca6beb3c19d1f040faa9da2d5026ee668b19dcfe0a2e7ab62c0e
+Copying config sha256:f20c0dcc4cde069b020b4cbfeb938572aa2611e473eb759923485049c9a8bf5a
+Writing manifest to image destination
+Storing signatures
+--> f20c0dcc4cd
+Successfully tagged temp.builder.openshift.io/developer-ocp/temps-1:cdd577ec
+f20c0dcc4cde069b020b4cbfeb938572aa2611e473eb759923485049c9a8bf5a
+
+Pushing image image-registry.openshift-image-registry.svc:5000/developer-ocp/temps:latest ...
+Getting image source signatures
+Copying blob sha256:4bd6e2eabb42ca6beb3c19d1f040faa9da2d5026ee668b19dcfe0a2e7ab62c0e
+Copying blob sha256:b8b9f4fbfc2dbc0a5c14a11cd3ee717cd2fb9c8b58499863ca111c9356af84d4
+Copying blob sha256:f6029bef86708a073e687c7ececb22245ee3cc2bff1dd9108e98e19469ac3c0f
+Copying blob sha256:6b5d6793adb89f3531e554d5066a6f7c5518cb9c8958f4c139713cbd7bacf30b
+Copying blob sha256:1cc60fbe16bd8c6d9af0ca63602331cb25bd68705ae0160dbaae1de6ac5457d3
+Copying blob sha256:ffb0ffdba2a920e44896cc35806092f88cef747e2bb92cffc9538507dd9f5238
+Copying config sha256:f20c0dcc4cde069b020b4cbfeb938572aa2611e473eb759923485049c9a8bf5a
+Writing manifest to image destination
+Storing signatures
+Successfully pushed image-registry.openshift-image-registry.svc:5000/developer-ocp/temps@sha256:961adb6b9758a47292931421e985cfc1ae72869e15ead96d28ba4fc3927a8f6f
+Push successful
+[student@workstation ~]$ oc get pods -w
+NAME                     READY   STATUS      RESTARTS   AGE
+temps-1-build            0/1     Completed   0          110s
+temps-785df57c66-j96qx   1/1     Running     0          81s
+^C[student@workstation ~]$ oc status
+In project developer-ocp on server https://api.ocp4.example.com:6443
+
+svc/temps - 172.30.155.116 ports 8080, 8443
+  deployment/temps deploys istag/temps:latest <-
+    bc/temps source builds https://github.com/RedHatTraining/DO180-apps on openshift/php:7.3 
+    deployment #2 running for about a minute - 1 pod
+    deployment #1 deployed 2 minutes ago
+
+
+1 info identified, use 'oc status --suggest' to see details.
+[student@workstation ~]$ oc get all
+NAME                         READY   STATUS      RESTARTS   AGE
+pod/temps-1-build            0/1     Completed   0          2m22s
+pod/temps-785df57c66-j96qx   1/1     Running     0          113s
+
+NAME            TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)             AGE
+service/temps   ClusterIP   172.30.155.116   <none>        8080/TCP,8443/TCP   2m23s
+
+NAME                    READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/temps   1/1     1            1           2m23s
+
+NAME                               DESIRED   CURRENT   READY   AGE
+replicaset.apps/temps-564dbdbbbb   0         0         0       2m23s
+replicaset.apps/temps-785df57c66   1         1         1       113s
+
+NAME                                   TYPE     FROM   LATEST
+buildconfig.build.openshift.io/temps   Source   Git    1
+
+NAME                               TYPE     FROM          STATUS     STARTED         DURATION
+build.build.openshift.io/temps-1   Source   Git@f7cd896   Complete   2 minutes ago   29s
+
+NAME                                   IMAGE REPOSITORY                                                       TAGS     UPDATED
+imagestream.image.openshift.io/temps   image-registry.openshift-image-registry.svc:5000/developer-ocp/temps   latest   About a minute ago
+[student@workstation ~]$ oc expose svc/temps
+route.route.openshift.io/temps exposed
+[student@workstation ~]$ oc get route/temps
+NAME    HOST/PORT                                   PATH   SERVICES   PORT       TERMINATION   WILDCARD
+temps   temps-developer-ocp.apps.ocp4.example.com          temps      8080-tcp                 None
+[student@workstation ~]$ lab openshift-review grade
+
+Grading the student's work for the Lab: Deploying Containerized Applications on OpenShift
+
+ · Log in on OpenShift.........................................  SUCCESS
+Accessing the web application..................................  PASS
+[student@workstation ~]$ lab openshift-review finish
+
+Completing the Lab: Deploying Containerized Applications on OpenShift
+
+ · Log in on OpenShift.........................................  SUCCESS
+ · Deleting the developer-ocp project..........................  SUCCESS
+[student@workstation ~]$ 
+
+------------------------------------------------Summary---------------------------
+In this chapter, you learned:
+
+• OpenShift Container Platform stores definitions of each OpenShift or Kubernetes resource
+instance as an object in the cluster's distributed database service, etcd. Common resource
+types are: Pod, Persistent Volume (PV), Persistent Volume Claim (PVC), Service
+(SVC), Route, Deployment, DeploymentConfig and Build Configuration (BC).
+• Use the OpenShift command-line client oc to:
+– Create, change, and delete projects.
+– Create application resources inside a project.
+– Delete, inspect, edit, and export resources inside a project.
+– Check logs from application pods, deployments, and build operations.
+• The oc new-app command can create application pods in many different ways: from an
+existing container image hosted on an image registry, from Containerfiles, and from source code
+using the Source-to-Image (S2I) process.
+• Source-to-Image (S2I) is a tool that makes it easy to build a container image from application
+source code. This tool retrieves source code from a Git repository, injects the source code into
+a selected container image based on a specific language or technology, and produces a new
+container image that runs the assembled application.
+• A Route connects a public-facing IP address and DNS host name to an internal-facing service
+IP. While services allow for network access between pods inside an OpenShift instance, routes
+allow for network access to pods from users and applications outside the OpenShift instance.
+• You can create, build, deploy, and monitor applications using the OpenShift web console.
+
+----------------------------CH7 - Deploying Multi-Container Applications-------12OCt22------------------
+----------------------------------------------
