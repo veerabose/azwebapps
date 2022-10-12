@@ -2285,3 +2285,226 @@ allow for network access to pods from users and applications outside the OpenShi
 
 ----------------------------CH7 - Deploying Multi-Container Applications-------12OCt22------------------
 ----------------------------------------------
+[student@workstation ~]$ lab multicontainer-application start
+
+Setting up workstation for the Guided Exercise: Creating an Application on OpenShift
+
+ · Checking podman configuration...............................  SUCCESS
+
+ Verifying the OpenShift cluster is running:
+ · Log in on OpenShift.........................................  SUCCESS
+ · Check the internal registry is up and running...............  SUCCESS
+ · Ensure application project does not exist...................  SUCCESS
+ · Downloading starter project.................................  SUCCESS
+ · Downloading solution project................................  SUCCESS
+
+Setup successful. Please proceed with the exercise.
+
+
+[student@workstation ~]$ source /usr/local/etc/ocp4.config
+[student@workstation ~]$ oc login -u ${RHT_OCP4_DEV_USER} -p ${RHT_OCP4_DEV_PASSWORD} ${RHT_OCP4_MASTER_API}
+Login successful.
+
+You don't have any projects. You can try to create a new project, by running
+
+    oc new-project <projectname>
+
+[student@workstation ~]$ oc new-project ${RHT_OCP4_DEV_USER}-application
+Now using project "developer-application" on server "https://api.ocp4.example.com:6443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app rails-postgresql-example
+
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=k8s.gcr.io/e2e-test-images/agnhost:2.33 -- /agnhost serve-hostname
+
+[student@workstation ~]$ oc get projects
+NAME                    DISPLAY NAME   STATUS
+developer-application                  Active
+[student@workstation ~]$ pwd
+/home/student
+[student@workstation ~]$ cd DO180-apps/
+[student@workstation DO180-apps]$ cd ..
+[student@workstation ~]$ cd DO180
+[student@workstation DO180]$ cd labs/multicontainer-application/
+[student@workstation multicontainer-application]$ ls
+db.sql  todo-app.yml
+[student@workstation multicontainer-application]$ less todo-app.yml 
+[student@workstation multicontainer-application]$ oc get sc
+NAME                    PROVISIONER                                   RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
+nfs-storage (default)   k8s-sigs.io/nfs-subdir-external-provisioner   Delete          Immediate           false                  75d
+[student@workstation multicontainer-application]$ oc get sc -o ymal | less
+[student@workstation multicontainer-application]$ oc get sc -o yaml | less
+[student@workstation multicontainer-application]$ oc get sc -o yaml 
+apiVersion: v1
+items:
+- apiVersion: storage.k8s.io/v1
+  kind: StorageClass
+  metadata:
+    annotations:
+      storageclass.kubernetes.io/is-default-class: "true"
+    creationTimestamp: "2022-07-28T16:27:24Z"
+    name: nfs-storage
+    resourceVersion: "22949"
+    uid: d34dc63c-af3f-45a6-b90d-06efdd5aa823
+  parameters:
+    archiveOnDelete: "false"
+  provisioner: k8s-sigs.io/nfs-subdir-external-provisioner
+  reclaimPolicy: Delete
+  volumeBindingMode: Immediate
+kind: List
+metadata:
+  resourceVersion: ""
+  selfLink: ""
+[student@workstation multicontainer-application]$ oc get pvc
+No resources found in developer-application namespace.
+[student@workstation multicontainer-application]$ oc create -f todo-app.yml
+pod/mysql created
+pod/todoapi created
+service/todoapi created
+service/mysql created
+persistentvolumeclaim/dbclaim created
+[student@workstation multicontainer-application]$ oc get app
+error: the server doesn't have a resource type "app"
+[student@workstation multicontainer-application]$ oc get all
+NAME          READY   STATUS    RESTARTS   AGE
+pod/mysql     1/1     Running   0          43s
+pod/todoapi   1/1     Running   0          43s
+
+NAME              TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)     AGE
+service/mysql     ClusterIP   172.30.66.189   <none>        3306/TCP    43s
+service/todoapi   ClusterIP   172.30.39.114   <none>        30080/TCP   43s
+[student@workstation multicontainer-application]$ cat todo-app.yml 
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    labels:
+      app: todonodejs
+      name: mysql
+    name: mysql
+  spec:
+    containers:
+    - env:
+      - name: MYSQL_ROOT_PASSWORD
+        value: r00tpa55
+      - name: MYSQL_USER
+        value: user1
+      - name: MYSQL_PASSWORD
+        value: mypa55
+      - name: MYSQL_DATABASE
+        value: items
+      image: registry.redhat.io/rhel8/mysql-80:1
+      name: mysql
+      ports:
+      - containerPort: 3306
+        name: mysql
+      volumeMounts:
+      - mountPath: /var/lib/mysql/data
+        name: db-volume
+    volumes:
+    - name: db-volume
+      persistentVolumeClaim:
+        claimName: dbclaim
+
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    labels:
+      app: todonodejs
+      name: todoapi
+    name: todoapi
+  spec:
+    containers:
+    - env:
+      - name: MYSQL_ENV_MYSQL_DATABASE
+        value: items
+      - name: MYSQL_ENV_MYSQL_USER
+        value: user1
+      - name: MYSQL_ENV_MYSQL_PASSWORD
+        value: mypa55
+      image: quay.io/redhattraining/do180-todonodejs-12
+      name: todoapi
+      ports:
+      - containerPort: 30080
+        name: nodejs-http
+      resources:
+        limits:
+          cpu: "0.5"
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: todonodejs
+      name: todoapi
+    name: todoapi
+  spec:
+    ports:
+    - port: 30080
+    selector:
+      name: todoapi
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: todonodejs
+      name: mysql
+    name: mysql
+  spec:
+    ports:
+    - port: 3306
+    selector:
+      name: mysql
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    labels:
+      app: todonodejs
+    name: dbclaim
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Mi
+kind: List
+metadata: {}
+[student@workstation multicontainer-application]$ oc get pvc
+NAME      STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+dbclaim   Bound    pvc-5eedb2d4-2442-451f-aab0-0bb344878363   10Mi       RWO            nfs-storage    79s
+[student@workstation multicontainer-application]$ oc get pods -w
+NAME      READY   STATUS    RESTARTS   AGE
+mysql     1/1     Running   0          110s
+todoapi   1/1     Running   0          110s
+^C[student@workstation multicontainer-application]$ oc port-forward mysql 3306:3306
+Forwarding from 127.0.0.1:3306 -> 3306
+Forwarding from [::1]:3306 -> 3306
+Handling connection for 3306
+^C[student@workstation multicontainer-application]$ 
+[student@workstation multicontainer-application]$ mysql -uuser1 -h 127.0.0.1 -pmypa55 -P3306 items < db.sql
+mysql: [Warning] Using a password on the command line interface can be insecure.
+[student@workstation multicontainer-application]$ 
+
+[student@workstation ~]$ oc expose service todoapi
+route.route.openshift.io/todoapi exposed
+[student@workstation ~]$ oc status | grep -o "http:.*com"
+http://todoapi-developer-application.apps.ocp4.example.com
+[student@workstation ~]$ curl -w "\n" $(oc status | grep -o "http:.*com")/todo/api/items/1
+{"id":1,"description":"Pick up newspaper","done":false}
+[student@workstation ~]$ cd ~
+[student@workstation ~]$ lab multicontainer-application finish
+
+Completing the Guided Exercise: Creating an Application on OpenShift
+
+ · Log in on OpenShift.........................................  SUCCESS
+ · Removing developer-application project......................  SUCCESS
+ · Removing the project directory..............................  SUCCESS
+ · Removing the solution directory.............................  SUCCESS
+[student@workstation ~]$ 
+------------------------------------------------LAB -Deploying Multi-Container Applications ------------------
+
+
+
