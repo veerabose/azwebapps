@@ -2506,5 +2506,554 @@ Completing the Guided Exercise: Creating an Application on OpenShift
 [student@workstation ~]$ 
 ------------------------------------------------LAB -Deploying Multi-Container Applications ------------------
 
+[student@workstation ~]$ lab multicontainer-review start
 
+Setting up workstation for the Lab: Deploying Multi-container Applications
+
+Exercise is already setup.
+ Verifying the OpenShift cluster is running:
+ · Log in on OpenShift.........................................  SUCCESS
+ · Check the internal registry is up and running...............  SUCCESS
+[student@workstation ~]$ cd ~/DO180/labs/multicontainer-review
+[student@workstation multicontainer-review]$ source /usr/local/etc/ocp4.config
+[student@workstation multicontainer-review]$ oc login -u ${RHT_OCP4_DEV_USER} -p ${RHT_OCP4_DEV_PASSWORD} ${RHT_OCP4_MASTER_API}
+Login successful.
+
+You have one project on this server: "developer-deploy"
+
+Using project "developer-deploy".
+[student@workstation multicontainer-review]$ oc new-project  ${RHT_OCP4_DEV_USER}-deploy
+Error from server (AlreadyExists): project.project.openshift.io "developer-deploy" already exists
+[student@workstation multicontainer-review]$ podman login registry.redhat.io
+Username: veeraabose
+Password: 
+Login Succeeded!
+[student@workstation multicontainer-review]$ oc new-project  ${RHT_OCP4_DEV_USER}-deploy
+Already on project "developer-deploy" on server "https://api.ocp4.example.com:6443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app rails-postgresql-example
+
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=k8s.gcr.io/e2e-test-images/agnhost:2.33 -- /agnhost serve-hostname
+
+[student@workstation multicontainer-review]$ cd images/mysql/
+[student@workstation mysql]$ ls
+build.sh  Containerfile  delete.sh  README.md  root  test  test.sh
+[student@workstation mysql]$ cat Containerfile 
+FROM registry.redhat.io/rhel8/mysql-80:1
+
+MAINTAINER username <username@example.com>
+
+RUN echo "default_authentication_plugin = mysql_native_password" >> /etc/my.cnf
+# MySQL image for DO180
+#
+# Volumes:
+#  * /var/lib/mysql/data - Datastore for MySQL
+#    /var/lib/mysql/init - Folder to load *.sql scripts
+# Environment:
+#  * $MYSQL_USER - Database user name
+#  * $MYSQL_PASSWORD - User's password
+#  * $MYSQL_DATABASE - Name of the database to create
+#  * $MYSQL_ROOT_PASSWORD (Optional) - Password for the 'root' MySQL account
+
+ADD root /
+[student@workstation mysql]$ podman build -t do180-mysql-80-rhel8 .
+STEP 1/4: FROM registry.redhat.io/rhel8/mysql-80:1
+STEP 2/4: MAINTAINER username <username@example.com>
+--> Using cache 9bbf8c0131b2e3fc9afcd20824c3f1d900053cec76b91ae03e6851ac2246a450
+--> 9bbf8c0131b
+STEP 3/4: RUN echo "default_authentication_plugin = mysql_native_password" >> /etc/my.cnf
+--> Using cache 2317d0ccc0e662fbe5ffedb950e037f1eacb180cbc83dd546a71d8feda242da7
+--> 2317d0ccc0e
+STEP 4/4: ADD root /
+--> Using cache e098971e846d72c626e26f8c0ef7c7035d4d8358e2786978db696ac98128447a
+COMMIT do180-mysql-80-rhel8
+--> e098971e846
+Successfully tagged localhost/do180-mysql-80-rhel8:latest
+Successfully tagged quay.io/veeraabose/do180-mysql-80-rhel8:latest
+e098971e846d72c626e26f8c0ef7c7035d4d8358e2786978db696ac98128447a
+[student@workstation mysql]$ oc get images
+Error from server (Forbidden): images.image.openshift.io is forbidden: User "developer" cannot list resource "images" in API group "image.openshift.io" at the cluster scope
+[student@workstation mysql]$ podman login quay.io -u ${RHT_OCP4_QUAY_USER}
+Password: 
+Login Succeeded!
+[student@workstation mysql]$ podman images
+REPOSITORY                               TAG         IMAGE ID      CREATED       SIZE
+localhost/do180-quote-php                latest      7da0ae1dbf13  11 hours ago  278 MB
+quay.io/veeraabose/do180-quote-php       latest      7da0ae1dbf13  11 hours ago  278 MB
+localhost/do180-mysql-80-rhel8           latest      e098971e846d  11 hours ago  619 MB
+quay.io/veeraabose/do180-mysql-80-rhel8  latest      e098971e846d  11 hours ago  619 MB
+registry.redhat.io/rhel8/mysql-80        1           b5b029803361  8 days ago    619 MB
+registry.access.redhat.com/ubi8/ubi      latest      10f854072e7e  5 weeks ago   227 MB
+[student@workstation mysql]$ podman tag do180-mysql-80-rhel8 quay.io/${RHT_OCP4_QUAY_USER}/do180-mysql-80-rhel8
+[student@workstation mysql]$ quay.io/veeraabose/do180-mysql-80-rhel8
+bash: quay.io/veeraabose/do180-mysql-80-rhel8: No such file or directory
+[student@workstation mysql]$ podman push quay.io/${RHT_OCP4_QUAY_USER}/do180-mysql-80-rhel8
+Getting image source signatures
+Copying blob 55d990a50708 skipped: already exists  
+Copying blob 66a040e73ac3 skipped: already exists  
+Copying blob 742ded26f924 skipped: already exists  
+Copying blob 5863c9bfd6af skipped: already exists  
+Copying blob 23e15b9ab3f0 skipped: already exists  
+Copying blob b38cb9259677 skipped: already exists  
+Copying config e098971e84 done  
+Writing manifest to image destination
+Storing signatures
+[student@workstation mysql]$ cd ~/DO180/labs/multicontainer-review
+[student@workstation multicontainer-review]$ cd images/quote-php
+[student@workstation quote-php]$ cat Containerfile 
+FROM registry.access.redhat.com/ubi8/ubi
+
+RUN yum --disableplugin=subscription-manager -y module enable php:7.2 \
+  && yum --disableplugin=subscription-manager -y install httpd php php-mysqlnd \
+  && yum --disableplugin=subscription-manager clean all
+
+ADD index.php /var/www/html
+
+RUN sed -i 's/Listen 80/Listen 8080/' /etc/httpd/conf/httpd.conf \
+  && sed -i 's/variables_order = "GPCS"/variables_order = "EGPCS"/' /etc/php.ini \
+  && sed -i 's/;clear_env/clear_env/' /etc/php-fpm.d/www.conf  \
+  && mkdir /run/php-fpm \
+  && chgrp -R 0 /var/log/httpd /var/run/httpd /run/php-fpm \
+  && chmod -R g=u /var/log/httpd /var/run/httpd /run/php-fpm
+
+EXPOSE 8080
+
+USER 1001
+
+CMD php-fpm & httpd -D FOREGROUND[student@workstation quote-php]$ podman build -t do180-quote-php .
+STEP 1/7: FROM registry.access.redhat.com/ubi8/ubi
+STEP 2/7: RUN yum --disableplugin=subscription-manager -y module enable php:7.2   && yum --disableplugin=subscription-manager -y install httpd php php-mysqlnd   && yum --disableplugin=subscription-manager clean all
+--> Using cache 07f7691238d3cb27b8023159b4d861f6b21d3071ba54bf648d2a2b74977843b7
+--> 07f7691238d
+STEP 3/7: ADD index.php /var/www/html
+--> Using cache fcd1d2680c37cc7280473ea07111b98e6a5328d396b220273673ebcaac0ad5e6
+--> fcd1d2680c3
+STEP 4/7: RUN sed -i 's/Listen 80/Listen 8080/' /etc/httpd/conf/httpd.conf   && sed -i 's/variables_order = "GPCS"/variables_order = "EGPCS"/' /etc/php.ini   && sed -i 's/;clear_env/clear_env/' /etc/php-fpm.d/www.conf    && mkdir /run/php-fpm   && chgrp -R 0 /var/log/httpd /var/run/httpd /run/php-fpm   && chmod -R g=u /var/log/httpd /var/run/httpd /run/php-fpm
+--> Using cache b6333ad3b93e5c01ef2076e4798321b5c97b9cfd59217fdfd3d0bee786711d32
+--> b6333ad3b93
+STEP 5/7: EXPOSE 8080
+--> Using cache 638f023e352c508e9b769b36ea7be4e7644472dc264ae91cd67ab5a6d3904535
+--> 638f023e352
+STEP 6/7: USER 1001
+--> Using cache ab99443cead3c77566e05154c486f75f646513672d658e3a3de33d9285ba2721
+--> ab99443cead
+STEP 7/7: CMD php-fpm & httpd -D FOREGROUND
+--> Using cache 7da0ae1dbf134110a0c90ac752afb74c62fc72b8c0249e0682a8ceda27ea809e
+COMMIT do180-quote-php
+--> 7da0ae1dbf1
+Successfully tagged localhost/do180-quote-php:latest
+Successfully tagged quay.io/veeraabose/do180-quote-php:latest
+7da0ae1dbf134110a0c90ac752afb74c62fc72b8c0249e0682a8ceda27ea809e
+[student@workstation quote-php]$ podman tag do180-quote-php quay.io/${RHT_OCP4_QUAY_USER}/do180-quote-php
+[student@workstation quote-php]$ podman push quay.io/${RHT_OCP4_QUAY_USER}/do180-quote-php
+Getting image source signatures
+Copying blob b44d85c56b38 skipped: already exists  
+Copying blob 582c3b5b156b skipped: already exists  
+Copying blob a72a2eb4d390 skipped: already exists  
+Copying blob 23e15b9ab3f0 skipped: already exists  
+Copying blob b38cb9259677 skipped: already exists  
+Copying config 7da0ae1dbf done  
+Writing manifest to image destination
+Storing signatures
+[student@workstation quote-php]$ cd ~/DO180/labs/multicontainer-review
+[student@workstation multicontainer-review]$ cat 
+images/                  quote-php-template.json  
+[student@workstation multicontainer-review]$ cat 
+images/                  quote-php-template.json  
+[student@workstation multicontainer-review]$ cat cat quote-php-template.json 
+cat: cat: No such file or directory
+{
+  "kind": "Template",
+  "apiVersion": "template.openshift.io/v1",
+  "metadata": {
+    "name": "quote-php-persistent",
+    "annotations": {
+      "openshift.io/display-name": "Quote PHP Application and MySQL 8"
+    }
+  },
+  "message": "",
+  "labels": {
+    "template": "quote-php-mysql-persistent-template",
+    "app": "quote-php"
+  },
+  "objects": [
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "name": "mysql",
+        "labels": {
+          "name": "mysql"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "image": "quay.io/${RHT_OCP4_QUAY_USER}/do180-mysql-80-rhel8",
+            "name": "mysql",
+            "env": [
+              {
+                "name": "MYSQL_ROOT_PASSWORD",
+                "value": "r00tpa55"
+              },
+              {
+                "name": "MYSQL_USER",
+                "value": "user1"
+              },
+              {
+                "name": "MYSQL_PASSWORD",
+                "value": "mypa55"
+              },
+              {
+                "name": "MYSQL_DATABASE",
+                "value": "quotes"
+              }
+            ],
+            "ports": [
+              {
+                "containerPort": 3306,
+                "name": "mysql"
+              }
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/var/lib/mysql/data",
+                "name": "db-volume"
+              },
+              {
+                "mountPath": "/var/lib/mysql/init",
+                "name": "db-init"
+              }
+            ]
+          }
+        ],
+        "volumes": [
+          {
+            "name": "db-volume",
+            "persistentVolumeClaim": {
+              "claimName": "dbclaim"
+            }
+          },
+          {
+            "name": "db-init",
+            "persistentVolumeClaim": {
+              "claimName": "dbinit"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "name": "quote-php",
+        "labels": {
+          "name": "quote-php"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "resources": {
+              "limits" : {
+                "cpu": "0.5"
+              }
+            },
+            "image": "quay.io/${RHT_OCP4_QUAY_USER}/do180-quote-php",
+            "name": "quote-php",
+            "ports": [
+              {
+                "containerPort": 8080,
+                "name": "php-http"
+              }
+            ],
+            "env": [
+              {
+                "name": "MYSQL_ENV_MYSQL_DATABASE",
+                "value": "items"
+              },
+              {
+                "name": "MYSQL_ENV_MYSQL_USER",
+                "value": "user1"
+              },
+              {
+                "name": "MYSQL_ENV_MYSQL_PASSWORD",
+                "value": "mypa55"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "labels": {
+          "name": "quote-php"
+        },
+        "name": "quote-php"
+      },
+      "spec": {
+        "ports": [
+          {
+            "port": 8080
+          }
+        ],
+        "selector": {
+          "name": "quote-php"
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "labels": {
+          "name": "mysql"
+        },
+        "name": "mysql"
+      },
+      "spec": {
+        "ports": [
+          {
+            "port": 3306
+          }
+        ],
+        "selector": {
+          "name": "mysql"
+        }
+      }
+    },
+    {
+      "kind": "PersistentVolumeClaim",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "dbinit"
+      },
+      "spec": {
+        "accessModes": [
+          "ReadWriteOnce"
+        ],
+        "resources": {
+          "requests": {
+            "storage": "1Mi"
+          }
+        }
+      }
+    },
+    {
+      "kind": "PersistentVolumeClaim",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "dbclaim"
+      },
+      "spec": {
+        "accessModes": [
+          "ReadWriteOnce"
+        ],
+        "resources": {
+          "requests": {
+            "storage": "10Mi"
+          }
+        }
+      }
+    }
+  ],
+  "parameters": [
+    {
+      "description": "Quay namespace the images are stored in",
+      "name": "RHT_OCP4_QUAY_USER",
+      "required": true
+    }
+  ]
+}
+[student@workstation multicontainer-review]$ oc create -f quote-php-template.json
+template.template.openshift.io/quote-php-persistent created
+[student@workstation multicontainer-review]$ oc process quote-php-persistent -p RHT_OCP4_QUAY_USER=${RHT_OCP4_QUAY_USER} | oc create -f -
+pod/mysql created
+pod/quote-php created
+service/quote-php created
+service/mysql created
+persistentvolumeclaim/dbinit created
+persistentvolumeclaim/dbclaim created
+[student@workstation multicontainer-review]$ oc get pods -w
+NAME        READY   STATUS             RESTARTS   AGE
+mysql       0/1     ImagePullBackOff   0          26s
+quote-php   0/1     ImagePullBackOff   0          26s
+quote-php   0/1     ErrImagePull       0          29s
+mysql       0/1     ErrImagePull       0          34s
+quote-php   0/1     ImagePullBackOff   0          41s
+mysql       0/1     ImagePullBackOff   0          47s
+quote-php   0/1     ErrImagePull       0          55s
+mysql       0/1     ErrImagePull       0          62s
+quote-php   0/1     ImagePullBackOff   0          68s
+mysql       0/1     ImagePullBackOff   0          73s
+quote-php   0/1     ErrImagePull       0          96s
+quote-php   0/1     ImagePullBackOff   0          111s
+^C[student@workstation multicontainer-review]$ oc get pods -w
+NAME        READY   STATUS             RESTARTS   AGE
+mysql       0/1     ImagePullBackOff   0          2m31s
+quote-php   0/1     ImagePullBackOff   0          2m31s
+^C[student@workstation multicontainer-review]$ podman pull quay.io/${RHT_OCP4_QUAY_USER}/do180-quote-php
+Trying to pull quay.io/veeraabose/do180-quote-php:latest...
+Getting image source signatures
+Copying blob 2d277c581f0b skipped: already exists  
+Copying blob 6ccad2a77f3f skipped: already exists  
+Copying blob 3d185440f04a skipped: already exists  
+Copying blob 21dbc25c21f4 skipped: already exists  
+Copying blob 0b8b5d0c8345 skipped: already exists  
+Copying config 7da0ae1dbf done  
+Writing manifest to image destination
+Storing signatures
+7da0ae1dbf134110a0c90ac752afb74c62fc72b8c0249e0682a8ceda27ea809e
+[student@workstation multicontainer-review]$ podman images
+REPOSITORY                               TAG         IMAGE ID      CREATED       SIZE
+quay.io/veeraabose/do180-quote-php       latest      7da0ae1dbf13  11 hours ago  278 MB
+localhost/do180-quote-php                latest      7da0ae1dbf13  11 hours ago  278 MB
+localhost/do180-mysql-80-rhel8           latest      e098971e846d  11 hours ago  619 MB
+quay.io/veeraabose/do180-mysql-80-rhel8  latest      e098971e846d  11 hours ago  619 MB
+registry.redhat.io/rhel8/mysql-80        1           b5b029803361  8 days ago    619 MB
+registry.access.redhat.com/ubi8/ubi      latest      10f854072e7e  5 weeks ago   227 MB
+[student@workstation multicontainer-review]$ oc events
+error: unknown command "events" for "oc"
+[student@workstation multicontainer-review]$ ls -lhrt
+total 8.0K
+-rw-rw-r--. 1 student student 4.4K Aug  8 14:21 quote-php-template.json
+drwxrwxr-x. 4 student student   71 Aug  8 14:21 images
+[student@workstation multicontainer-review]$ less quote-php-template.json 
+[student@workstation multicontainer-review]$ oc get pods
+NAME        READY   STATUS             RESTARTS   AGE
+mysql       0/1     ImagePullBackOff   0          4m10s
+quote-php   0/1     ImagePullBackOff   0          4m10s
+[student@workstation multicontainer-review]$ oc get all
+NAME            READY   STATUS             RESTARTS   AGE
+pod/mysql       0/1     ImagePullBackOff   0          5m24s
+pod/quote-php   0/1     ImagePullBackOff   0          5m24s
+
+NAME                TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+service/mysql       ClusterIP   172.30.128.223   <none>        3306/TCP   5m24s
+service/quote-php   ClusterIP   172.30.173.40    <none>        8080/TCP   5m24s
+[student@workstation multicontainer-review]$ oc expose svc quote-php
+route.route.openshift.io/quote-php exposed
+[student@workstation multicontainer-review]$ oc get route
+NAME        HOST/PORT                                          PATH   SERVICES    PORT   TERMINATION   WILDCARD
+quote-php   quote-php-developer-deploy.apps.ocp4.example.com          quote-php   8080                 None
+[student@workstation multicontainer-review]$ curl -w "\n" http://quote-php-${RHT_OCP4_DEV_USER}-deploy.${RHT_OCP4_WILDCARD_DOMAIN}
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <style type="text/css">
+      body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        line-height: 1.66666667;
+        font-size: 16px;
+        color: #333;
+        background-color: #fff;
+        margin: 2em 1em;
+      }
+      h1 {
+        font-size: 28px;
+        font-weight: 400;
+      }
+      p {
+        margin: 0 0 10px;
+      }
+      .alert.alert-info {
+        background-color: #F0F0F0;
+        margin-top: 30px;
+        padding: 30px;
+      }
+      .alert p {
+        padding-left: 35px;
+      }
+      ul {
+        padding-left: 51px;
+        position: relative;
+      }
+      li {
+        font-size: 14px;
+        margin-bottom: 1em;
+      }
+      p.info {
+        position: relative;
+        font-size: 20px;
+      }
+      p.info:before, p.info:after {
+        content: "";
+        left: 0;
+        position: absolute;
+        top: 0;
+      }
+      p.info:before {
+        background: #0066CC;
+        border-radius: 16px;
+        color: #fff;
+        content: "i";
+        font: bold 16px/24px serif;
+        height: 24px;
+        left: 0px;
+        text-align: center;
+        top: 4px;
+        width: 24px;
+      }
+
+      @media (min-width: 768px) {
+        body {
+          margin: 6em;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <h1>Application is not available</h1>
+      <p>The application is currently not serving requests at this endpoint. It may not have been started or is still starting.</p>
+
+      <div class="alert alert-info">
+        <p class="info">
+          Possible reasons you are seeing this page:
+        </p>
+        <ul>
+          <li>
+            <strong>The host doesn't exist.</strong>
+            Make sure the hostname was typed correctly and that a route matching this hostname exists.
+          </li>
+          <li>
+            <strong>The host exists, but doesn't have a matching path.</strong>
+            Check if the URL path was typed correctly and that the route was created using the desired path.
+          </li>
+          <li>
+            <strong>Route and path matches, but all pods are down.</strong>
+            Make sure that the resources exposed by this route (pods, services, deployment configs, etc) have at least one pod running.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </body>
+</html>
+
+[student@workstation multicontainer-review]$ 
+-----------------------------------------------Deploying Multi-Container Applications -- END ---------------
+
+Summary
+In this chapter, you learned:
+• Software-defined networks enable communication between containers. Containers must be
+attached to the same software-defined network to communicate.
+• Containerized applications cannot rely on fixed IP addresses or host names to find services.
+• Podman uses Container Network Interface (CNI) to create a software-defined network and
+attaches all containers on the host to that network. Kubernetes and OpenShift create a
+software-defined network between all containers in a pod.
+• Within the same project, Kubernetes injects a set of variables for each service into all pods.
+• OpenShift templates automate creating applications consisting of multiple resources. Template
+parameters allow using the same values when creating multiple resources.
+
+
+---------------------------------------------------------13oct22-------------------------------------
 
