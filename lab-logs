@@ -3056,4 +3056,459 @@ parameters allow using the same values when creating multiple resources.
 
 
 ---------------------------------------------------------13oct22-------------------------------------
+CH-9 GE-Troubleshooting OpenShift Clusters and Applications
+[student@workstation ~]$ lab install-troubleshoot start
+
+Checking prerequisites for Guided Exercise: Troubleshooting OpenShift Clusters and Applications
+
+ Preparing the student's workstation:
+ · Download exercise files.....................................  SUCCESS
+ Verify the OpenShift cluster is running:
+ · Router pods are available...................................  SUCCESS
+ · OAuth pods are available....................................  SUCCESS
+ · API pods are available......................................  SUCCESS
+ · Control plane node 'master01' is ready......................  SUCCESS
+ · Control plane node 'master02' is ready......................  SUCCESS
+ · Control plane node 'master03' is ready......................  SUCCESS
+ Checking for conflicts with existing OpenShift projects:
+ · The 'install-troubleshoot' project is absent................  SUCCESS
+
+Setting up the classroom for Guided Exercise: Troubleshooting OpenShift Clusters and Applications
+
+ Restoring authentication settings to installation defaults:
+ · Removing 'cluster-admin' role from the 'admin' user.........  SUCCESS
+ · Remove HTPasswd secret: 'htpasswd-secret'...................  SUCCESS
+ · Remove all configured Identity Providers....................  SUCCESS
+ · Remove all existing users...................................  SUCCESS
+ · Remove all existing identities..............................  SUCCESS
+ Preparing the exercise:
+ · Create project 'install-troubleshoot'.......................  SUCCESS
+ · Deploy PostgreSQL in 'install-troubleshoot'.................  SUCCESS
+
+Overall start status...........................................  SUCCESS
+
+[student@workstation ~]$ source /usr/local/etc/ocp4.config
+[student@workstation ~]$ oc login -u kubeadmin -p ${RHT_OCP4_KUBEADM_PASSWD} https://api.ocp4.example.com:6443
+Login successful.
+
+You have access to 69 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "developer-deploy".
+[student@workstation ~]$ oc get nodes
+NAME       STATUS   ROLES           AGE   VERSION
+master01   Ready    master,worker   77d   v1.23.3+e419edf
+master02   Ready    master,worker   77d   v1.23.3+e419edf
+master03   Ready    master,worker   77d   v1.23.3+e419edf
+[student@workstation ~]$ oc adm top node
+NAME       CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%   
+master01   535m         15%    6282Mi          42%       
+master02   599m         17%    5873Mi          39%       
+master03   937m         26%    9133Mi          61%       
+[student@workstation ~]$ oc describe node master01
+Name:               master01
+Roles:              master,worker
+Labels:             beta.kubernetes.io/arch=amd64
+                    beta.kubernetes.io/os=linux
+                    kubernetes.io/arch=amd64
+                    kubernetes.io/hostname=master01
+                    kubernetes.io/os=linux
+                    node-role.kubernetes.io/master=
+                    node-role.kubernetes.io/worker=
+                    node.openshift.io/os_id=rhcos
+Annotations:        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+                    machineconfiguration.openshift.io/currentConfig: rendered-master-dac1e919b294c370b32172cffe4ba8e9
+                    machineconfiguration.openshift.io/desiredConfig: rendered-master-dac1e919b294c370b32172cffe4ba8e9
+                    machineconfiguration.openshift.io/reason: 
+                    machineconfiguration.openshift.io/state: Done
+                    volumes.kubernetes.io/controller-managed-attach-detach: true
+CreationTimestamp:  Thu, 28 Jul 2022 12:11:26 -0400
+Taints:             <none>
+Unschedulable:      false
+Lease:
+  HolderIdentity:  master01
+  AcquireTime:     <unset>
+  RenewTime:       Thu, 13 Oct 2022 13:44:58 -0400
+Conditions:
+  Type             Status  LastHeartbeatTime                 LastTransitionTime                Reason                       Message
+  ----             ------  -----------------                 ------------------                ------                       -------
+  MemoryPressure   False   Thu, 13 Oct 2022 13:40:41 -0400   Thu, 28 Jul 2022 12:45:30 -0400   KubeletHasSufficientMemory   kubelet has sufficient memory available
+  DiskPressure     False   Thu, 13 Oct 2022 13:40:41 -0400   Thu, 28 Jul 2022 12:45:30 -0400   KubeletHasNoDiskPressure     kubelet has no disk pressure
+  PIDPressure      False   Thu, 13 Oct 2022 13:40:41 -0400   Thu, 28 Jul 2022 12:45:30 -0400   KubeletHasSufficientPID      kubelet has sufficient PID available
+  Ready            True    Thu, 13 Oct 2022 13:40:41 -0400   Wed, 12 Oct 2022 00:38:53 -0400   KubeletReady                 kubelet is posting ready status
+Addresses:
+  InternalIP:  192.168.50.10
+  Hostname:    master01
+Capacity:
+  cpu:                4
+  ephemeral-storage:  41407468Ki
+  hugepages-1Gi:      0
+  hugepages-2Mi:      0
+  memory:             16409340Ki
+  pods:               250
+Allocatable:
+  cpu:                3500m
+  ephemeral-storage:  38161122446
+  hugepages-1Gi:      0
+  hugepages-2Mi:      0
+  memory:             15258364Ki
+  pods:               250
+System Info:
+  Machine ID:                             5a24320e1fb84806a18b8cbc6b6ffc87
+  System UUID:                            0f26ca2d-1b85-4908-bc4e-21c45cb2f177
+  Boot ID:                                0166c6b1-b9df-428d-8c2d-a2518d45495d
+  Kernel Version:                         4.18.0-305.34.2.el8_4.x86_64
+  OS Image:                               Red Hat Enterprise Linux CoreOS 410.84.202202251620-0 (Ootpa)
+  Operating System:                       linux
+  Architecture:                           amd64
+  Container Runtime Version:              cri-o://1.23.1-9.rhaos4.10.gitbdffb9a.el8
+  Kubelet Version:                        v1.23.3+e419edf
+  Kube-Proxy Version:                     v1.23.3+e419edf
+Non-terminated Pods:                      (32 in total)
+  Namespace                               Name                                       CPU Requests  CPU Limits  Memory Requests  Memory Limits  Age
+  ---------                               ----                                       ------------  ----------  ---------------  -------------  ---
+  common                                  nexus-1-b8w47                              0 (0%)        0 (0%)      512Mi (3%)       2Gi (13%)      76d
+  developer-deploy                        mysql                                      0 (0%)        0 (0%)      0 (0%)           0 (0%)         24h
+  developer-deploy                        quote-php                                  500m (14%)    500m (14%)  0 (0%)           0 (0%)         24h
+  openshift-apiserver                     apiserver-678b596447-t64mg                 110m (3%)     0 (0%)      250Mi (1%)       0 (0%)         77d
+  openshift-authentication                oauth-openshift-bbb74db59-txvhg            10m (0%)      0 (0%)      50Mi (0%)        0 (0%)         3m48s
+  openshift-cluster-node-tuning-operator  tuned-xxj7j                                10m (0%)      0 (0%)      50Mi (0%)        0 (0%)         77d
+  openshift-controller-manager            controller-manager-bzvmm                   100m (2%)     0 (0%)      100Mi (0%)       0 (0%)         14d
+  openshift-dns                           dns-default-7h288                          60m (1%)      0 (0%)      110Mi (0%)       0 (0%)         77d
+  openshift-dns                           node-resolver-9756h                        5m (0%)       0 (0%)      21Mi (0%)        0 (0%)         77d
+  openshift-etcd                          etcd-master01                              400m (11%)    0 (0%)      930Mi (6%)       0 (0%)         77d
+  openshift-etcd                          etcd-quorum-guard-7d8dc4bd99-pql5k         10m (0%)      0 (0%)      5Mi (0%)         0 (0%)         77d
+  openshift-image-registry                node-ca-94wbj                              10m (0%)      0 (0%)      10Mi (0%)        0 (0%)         77d
+  openshift-ingress-canary                ingress-canary-wt7bx                       10m (0%)      0 (0%)      20Mi (0%)        0 (0%)         77d
+  openshift-kube-apiserver                kube-apiserver-guard-master01              10m (0%)      0 (0%)      5Mi (0%)         0 (0%)         77d
+  openshift-kube-apiserver                kube-apiserver-master01                    290m (8%)     0 (0%)      1224Mi (8%)      0 (0%)         14d
+  openshift-kube-controller-manager       kube-controller-manager-guard-master01     10m (0%)      0 (0%)      5Mi (0%)         0 (0%)         77d
+  openshift-kube-controller-manager       kube-controller-manager-master01           80m (2%)      0 (0%)      500Mi (3%)       0 (0%)         77d
+  openshift-kube-scheduler                openshift-kube-scheduler-guard-master01    10m (0%)      0 (0%)      5Mi (0%)         0 (0%)         77d
+  openshift-kube-scheduler                openshift-kube-scheduler-master01          25m (0%)      0 (0%)      150Mi (1%)       0 (0%)         77d
+  openshift-machine-config-operator       machine-config-daemon-r4tg7                40m (1%)      0 (0%)      100Mi (0%)       0 (0%)         77d
+  openshift-machine-config-operator       machine-config-server-gvm88                20m (0%)      0 (0%)      50Mi (0%)        0 (0%)         77d
+  openshift-marketplace                   do285-catalog-jn2jm                        10m (0%)      0 (0%)      50Mi (0%)        0 (0%)         76d
+  openshift-monitoring                    node-exporter-jg7xm                        9m (0%)       0 (0%)      47Mi (0%)        0 (0%)         77d
+  openshift-monitoring                    prometheus-adapter-59f98c64fc-6f2hc        1m (0%)       0 (0%)      40Mi (0%)        0 (0%)         14d
+  openshift-multus                        multus-additional-cni-plugins-hgmg8        10m (0%)      0 (0%)      10Mi (0%)        0 (0%)         77d
+  openshift-multus                        multus-admission-controller-dkfhb          20m (0%)      0 (0%)      70Mi (0%)        0 (0%)         77d
+  openshift-multus                        multus-fcsvm                               10m (0%)      0 (0%)      65Mi (0%)        0 (0%)         77d
+  openshift-multus                        network-metrics-daemon-pk985               20m (0%)      0 (0%)      120Mi (0%)       0 (0%)         77d
+  openshift-network-diagnostics           network-check-target-kvczc                 10m (0%)      0 (0%)      15Mi (0%)        0 (0%)         77d
+  openshift-oauth-apiserver               apiserver-d4dddf5fc-tjz9h                  150m (4%)     0 (0%)      200Mi (1%)       0 (0%)         77d
+  openshift-sdn                           sdn-controller-cvdj2                       20m (0%)      0 (0%)      70Mi (0%)        0 (0%)         77d
+  openshift-sdn                           sdn-z8csz                                  110m (3%)     0 (0%)      220Mi (1%)       0 (0%)         77d
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.)
+  Resource           Requests      Limits
+  --------           --------      ------
+  cpu                2080m (59%)   500m (14%)
+  memory             5004Mi (33%)  2Gi (13%)
+  ephemeral-storage  0 (0%)        0 (0%)
+  hugepages-1Gi      0 (0%)        0 (0%)
+  hugepages-2Mi      0 (0%)        0 (0%)
+Events:
+  Type     Reason                   Age                    From     Message
+  ----     ------                   ----                   ----     -------
+  Normal   Starting                 77d                    kubelet  Starting kubelet.
+  Normal   NodeHasSufficientMemory  77d (x2 over 77d)      kubelet  Node master01 status is now: NodeHasSufficientMemory
+  Normal   NodeHasNoDiskPressure    77d (x2 over 77d)      kubelet  Node master01 status is now: NodeHasNoDiskPressure
+  Normal   NodeHasSufficientPID     77d (x2 over 77d)      kubelet  Node master01 status is now: NodeHasSufficientPID
+  Normal   NodeAllocatableEnforced  77d                    kubelet  Updated Node Allocatable limit across pods
+  Normal   NodeReady                77d                    kubelet  Node master01 status is now: NodeReady
+  Normal   NodeNotSchedulable       77d                    kubelet  Node master01 status is now: NodeNotSchedulable
+  Normal   NodeHasNoDiskPressure    77d (x2 over 77d)      kubelet  Node master01 status is now: NodeHasNoDiskPressure
+  Normal   NodeHasSufficientMemory  77d (x2 over 77d)      kubelet  Node master01 status is now: NodeHasSufficientMemory
+  Normal   Starting                 77d                    kubelet  Starting kubelet.
+  Normal   NodeHasSufficientPID     77d (x2 over 77d)      kubelet  Node master01 status is now: NodeHasSufficientPID
+  Warning  Rebooted                 77d                    kubelet  Node master01 has been rebooted, boot id: b20dcdba-b64a-4f8b-9d4d-acf2ee0849cc
+  Normal   NodeNotReady             77d                    kubelet  Node master01 status is now: NodeNotReady
+  Normal   NodeNotSchedulable       77d                    kubelet  Node master01 status is now: NodeNotSchedulable
+  Normal   NodeAllocatableEnforced  77d                    kubelet  Updated Node Allocatable limit across pods
+  Normal   NodeReady                77d                    kubelet  Node master01 status is now: NodeReady
+  Normal   NodeSchedulable          77d                    kubelet  Node master01 status is now: NodeSchedulable
+  Normal   NodeAllocatableEnforced  76d                    kubelet  Updated Node Allocatable limit across pods
+  Normal   Starting                 76d                    kubelet  Starting kubelet.
+  Normal   NodeHasNoDiskPressure    76d (x8 over 76d)      kubelet  Node master01 status is now: NodeHasNoDiskPressure
+  Normal   NodeHasSufficientPID     76d (x7 over 76d)      kubelet  Node master01 status is now: NodeHasSufficientPID
+  Normal   NodeHasSufficientMemory  76d (x8 over 76d)      kubelet  Node master01 status is now: NodeHasSufficientMemory
+  Normal   Starting                 7d2h                   kubelet  Starting kubelet.
+  Normal   NodeHasSufficientMemory  7d2h (x8 over 7d2h)    kubelet  Node master01 status is now: NodeHasSufficientMemory
+  Normal   NodeHasNoDiskPressure    7d2h (x8 over 7d2h)    kubelet  Node master01 status is now: NodeHasNoDiskPressure
+  Normal   NodeHasSufficientPID     7d2h (x7 over 7d2h)    kubelet  Node master01 status is now: NodeHasSufficientPID
+  Normal   NodeAllocatableEnforced  7d2h                   kubelet  Updated Node Allocatable limit across pods
+  Normal   Starting                 7d1h                   kubelet  Starting kubelet.
+  Normal   NodeAllocatableEnforced  7d1h                   kubelet  Updated Node Allocatable limit across pods
+  Normal   NodeHasNoDiskPressure    7d1h (x8 over 7d1h)    kubelet  Node master01 status is now: NodeHasNoDiskPressure
+  Normal   NodeHasSufficientPID     7d1h (x7 over 7d1h)    kubelet  Node master01 status is now: NodeHasSufficientPID
+  Normal   NodeHasSufficientMemory  7d1h (x8 over 7d1h)    kubelet  Node master01 status is now: NodeHasSufficientMemory
+  Normal   Starting                 7d1h                   kubelet  Starting kubelet.
+  Normal   NodeHasSufficientMemory  7d1h (x8 over 7d1h)    kubelet  Node master01 status is now: NodeHasSufficientMemory
+  Normal   NodeHasNoDiskPressure    7d1h (x8 over 7d1h)    kubelet  Node master01 status is now: NodeHasNoDiskPressure
+  Normal   NodeHasSufficientPID     7d1h (x7 over 7d1h)    kubelet  Node master01 status is now: NodeHasSufficientPID
+  Normal   NodeAllocatableEnforced  7d1h                   kubelet  Updated Node Allocatable limit across pods
+  Normal   NodeHasSufficientMemory  4d1h (x8 over 4d1h)    kubelet  Node master01 status is now: NodeHasSufficientMemory
+  Normal   NodeHasNoDiskPressure    4d1h (x8 over 4d1h)    kubelet  Node master01 status is now: NodeHasNoDiskPressure
+  Normal   NodeHasSufficientPID     4d1h (x7 over 4d1h)    kubelet  Node master01 status is now: NodeHasSufficientPID
+  Normal   NodeAllocatableEnforced  4d1h                   kubelet  Updated Node Allocatable limit across pods
+  Normal   Starting                 4d1h                   kubelet  Starting kubelet.
+  Normal   NodeAllocatableEnforced  3d12h                  kubelet  Updated Node Allocatable limit across pods
+  Normal   Starting                 3d12h                  kubelet  Starting kubelet.
+  Normal   NodeHasSufficientMemory  3d12h (x8 over 3d12h)  kubelet  Node master01 status is now: NodeHasSufficientMemory
+  Normal   NodeHasSufficientPID     3d12h (x7 over 3d12h)  kubelet  Node master01 status is now: NodeHasSufficientPID
+  Normal   NodeHasNoDiskPressure    3d12h (x8 over 3d12h)  kubelet  Node master01 status is now: NodeHasNoDiskPressure
+  Normal   Starting                 3d1h                   kubelet  Starting kubelet.
+  Normal   NodeHasSufficientMemory  3d1h (x8 over 3d1h)    kubelet  Node master01 status is now: NodeHasSufficientMemory
+  Normal   NodeHasNoDiskPressure    3d1h (x8 over 3d1h)    kubelet  Node master01 status is now: NodeHasNoDiskPressure
+  Normal   NodeHasSufficientPID     3d1h (x7 over 3d1h)    kubelet  Node master01 status is now: NodeHasSufficientPID
+  Normal   NodeAllocatableEnforced  3d1h                   kubelet  Updated Node Allocatable limit across pods
+  Normal   NodeAllocatableEnforced  2d1h                   kubelet  Updated Node Allocatable limit across pods
+  Normal   NodeHasSufficientMemory  2d1h (x8 over 2d1h)    kubelet  Node master01 status is now: NodeHasSufficientMemory
+  Normal   Starting                 2d1h                   kubelet  Starting kubelet.
+  Normal   NodeHasSufficientPID     2d1h (x7 over 2d1h)    kubelet  Node master01 status is now: NodeHasSufficientPID
+  Normal   NodeHasNoDiskPressure    2d1h (x8 over 2d1h)    kubelet  Node master01 status is now: NodeHasNoDiskPressure
+  Normal   NodeHasSufficientMemory  37h (x8 over 37h)      kubelet  Node master01 status is now: NodeHasSufficientMemory
+  Normal   NodeHasNoDiskPressure    37h (x8 over 37h)      kubelet  Node master01 status is now: NodeHasNoDiskPressure
+  Normal   NodeHasSufficientPID     37h (x7 over 37h)      kubelet  Node master01 status is now: NodeHasSufficientPID
+  Normal   NodeAllocatableEnforced  37h                    kubelet  Updated Node Allocatable limit across pods
+  Normal   Starting                 37h                    kubelet  Starting kubelet.
+  Normal   NodeHasSufficientPID     25h (x7 over 25h)      kubelet  Node master01 status is now: NodeHasSufficientPID
+  Normal   NodeAllocatableEnforced  25h                    kubelet  Updated Node Allocatable limit across pods
+  Normal   NodeHasSufficientMemory  25h (x8 over 25h)      kubelet  Node master01 status is now: NodeHasSufficientMemory
+  Normal   NodeHasNoDiskPressure    25h (x8 over 25h)      kubelet  Node master01 status is now: NodeHasNoDiskPressure
+  Normal   Starting                 25h                    kubelet  Starting kubelet.
+  Normal   NodeAllocatableEnforced  42m                    kubelet  Updated Node Allocatable limit across pods
+  Normal   Starting                 42m                    kubelet  Starting kubelet.
+  Normal   NodeHasSufficientMemory  42m (x8 over 42m)      kubelet  Node master01 status is now: NodeHasSufficientMemory
+  Normal   NodeHasNoDiskPressure    42m (x8 over 42m)      kubelet  Node master01 status is now: NodeHasNoDiskPressure
+  Normal   NodeHasSufficientPID     42m (x7 over 42m)      kubelet  Node master01 status is now: NodeHasSufficientPID
+[student@workstation ~]$ oc get pod -n openshift-image-registry
+NAME                                               READY   STATUS    RESTARTS   AGE
+cluster-image-registry-operator-6f7784dc86-hbhq9   1/1     Running   12         77d
+image-registry-589dbd88dd-wld7p                    1/1     Running   12         77d
+node-ca-94wbj                                      1/1     Running   13         77d
+node-ca-fzrm2                                      1/1     Running   13         77d
+node-ca-xxn6f                                      1/1     Running   13         77d
+[student@workstation ~]$ oc logs --tail 3 -n openshift-image-registry cluster-image-registry-operator-564bd5dd8f-s46bz
+Error from server (NotFound): pods "cluster-image-registry-operator-564bd5dd8f-s46bz" not found
+[student@workstation ~]$ oc logs --tail 3 -n openshift-image-registry cluster-image-registry-operator-6f7784dc86-hbhq9
+I1013 17:47:25.564857       1 generator.go:60] object *v1.DaemonSet, Namespace=openshift-image-registry, Name=node-ca updated: 
+I1013 17:47:25.574638       1 recorder_logging.go:44] &Event{ObjectMeta:{dummy.171db21630cabcf4  dummy    0 0001-01-01 00:00:00 +0000 UTC <nil> <nil> map[] map[] [] []  []},InvolvedObject:ObjectReference{Kind:Pod,Namespace:dummy,Name:dummy,UID:,APIVersion:v1,ResourceVersion:,FieldPath:,},Reason:DaemonSetUpdated,Message:Updated DaemonSet.apps/node-ca -n openshift-image-registry because it changed,Source:EventSource{Component:,Host:,},FirstTimestamp:2022-10-13 17:47:25.574569204 +0000 UTC m=+2548.813628627,LastTimestamp:2022-10-13 17:47:25.574569204 +0000 UTC m=+2548.813628627,Count:1,Type:Normal,EventTime:0001-01-01 00:00:00 +0000 UTC,Series:nil,Action:,Related:nil,ReportingController:,ReportingInstance:,}
+I1013 17:47:25.575367       1 generator.go:60] object *v1.DaemonSet, Namespace=openshift-image-registry, Name=node-ca updated: 
+[student@workstation ~]$ oc logs --tail 1 -n openshift-image-registry image-registry-589dbd88dd-wld7p
+time="2022-10-13T17:49:13.910077433Z" level=info msg=response go.version=go1.17.5 http.request.host="10.8.0.9:5000" http.request.id=ef2898e0-5d79-44db-8eef-73d8a8028ddf http.request.method=GET http.request.remoteaddr="10.8.0.1:36368" http.request.uri=/healthz http.request.useragent=kube-probe/1.23 http.response.duration="42.283µs" http.response.status=200 http.response.written=0
+[student@workstation ~]$ oc adm node-logs --tail 1 -u kubelet master01
+-- Logs begin at Thu 2022-07-28 16:08:57 UTC, end at Thu 2022-10-13 17:50:12 UTC. --
+Oct 12 18:10:55.363853 master01 systemd[1]: kubelet.service: Consumed 7min 6.601s CPU time
+-- Logs begin at Thu 2022-07-28 16:08:57 UTC, end at Thu 2022-10-13 17:50:12 UTC. --
+Oct 13 17:50:06.980222 master01 hyperkube[1807]: E1013 17:50:06.980045    1807 pod_workers.go:949] "Error syncing pod, skipping" err="failed to \"StartContainer\" for \"mysql\" with ImagePullBackOff: \"Back-off pulling image \\\"quay.io/veeraabose/do180-mysql-80-rhel8\\\"\"" pod="developer-deploy/mysql" podUID=174436c7-71b5-45aa-a8f6-79a416e94bf6
+[student@workstation ~]$ oc debug node/master01
+Starting pod/master01-debug ...
+To use host binaries, run `chroot /host`
+
+chroot /host 
+Pod IP: 192.168.50.10
+If you don't see a command prompt, try pressing enter.
+
+sh-4.4# sh-4.4# chroot /host
+sh-4.4# systemctl status kubelet
+● kubelet.service - Kubernetes Kubelet
+   Loaded: loaded (/etc/systemd/system/kubelet.service; enabled; vendor preset: disabled)
+  Drop-In: /etc/systemd/system/kubelet.service.d
+           └─10-mco-default-madv.conf, 20-logging.conf, 20-nodenet.conf
+   Active: active (running) since Thu 2022-10-13 17:02:48 UTC; 48min ago
+  Process: 1805 ExecStartPre=/bin/rm -f /var/lib/kubelet/memory_manager_state (code=exited, status=0/SUCCESS)
+  Process: 1803 ExecStartPre=/bin/rm -f /var/lib/kubelet/cpu_manager_state (code=exited, status=0/SUCCESS)
+  Process: 1801 ExecStartPre=/bin/mkdir --parents /etc/kubernetes/manifests (code=exited, status=0/SUCCESS)
+ Main PID: 1807 (kubelet)
+    Tasks: 22 (limit: 101964)
+   Memory: 302.8M
+      CPU: 2min 51.347s
+   CGroup: /system.slice/kubelet.service
+           └─1807 kubelet --config=/etc/kubernetes/kubelet.conf --bootstrap-kubeconfig=/etc/kubernetes/kubeconfig --kubeconfig=/var/lib/kubelet/kubeconfig --container-runtime=remote --c>
+
+Oct 13 17:50:49 master01 hyperkube[1807]: W1013 17:50:49.484226    1807 manager.go:1176] Failed to process watch event {EventType:0 Name:/kubepods.slice/kubepods-besteffort.slice/kubepo>
+Oct 13 17:50:49 master01 hyperkube[1807]: I1013 17:50:49.870590    1807 kubelet.go:2124] "SyncLoop (PLEG): event for pod" pod="developer-deploy/master01-debug" event=&{ID:2cf5e1d3-3eb1->
+Oct 13 17:50:53 master01 hyperkube[1807]: E1013 17:50:53.974939    1807 pod_workers.go:949] "Error syncing pod, skipping" err="failed to \"StartContainer\" for \"mysql\" with ImagePullB>
+Oct 13 17:51:00 master01 hyperkube[1807]: E1013 17:51:00.043618    1807 remote_image.go:236] "PullImage from image service failed" err="rpc error: code = Unknown desc = reading manifest>
+Oct 13 17:51:00 master01 hyperkube[1807]: E1013 17:51:00.043782    1807 kuberuntime_manager.go:919] container &Container{Name:quote-php,Image:quay.io/veeraabose/do180-quote-php,Command:>
+Oct 13 17:51:00 master01 hyperkube[1807]: E1013 17:51:00.043814    1807 pod_workers.go:949] "Error syncing pod, skipping" err="failed to \"StartContainer\" for \"quote-php\" with ErrIma>
+Oct 13 17:51:00 master01 hyperkube[1807]: I1013 17:51:00.903697    1807 kubelet.go:2124] "SyncLoop (PLEG): event for pod" pod="developer-deploy/master01-debug" event=&{ID:2cf5e1d3-3eb1->
+Oct 13 17:51:07 master01 hyperkube[1807]: E1013 17:51:07.975413    1807 pod_workers.go:949] "Error syncing pod, skipping" err="failed to \"StartContainer\" for \"mysql\" with ImagePullB>
+Oct 13 17:51:14 master01 hyperkube[1807]: E1013 17:51:14.973973    1807 pod_workers.go:949] "Error syncing pod, skipping" err="failed to \"StartContainer\" for \"quote-php\" with ImageP>
+Oct 13 17:51:18 master01 hyperkube[1807]: E1013 17:51:18.974828    1807 pod_workers.go:949] "Error syncing pod, skipping" err="failed to \"StartContainer\" for \"mysql\" with ImagePullB>
+sh-4.4# systemctl status crio
+● crio.service - Container Runtime Interface for OCI (CRI-O)
+   Loaded: loaded (/usr/lib/systemd/system/crio.service; disabled; vendor preset: disabled)
+  Drop-In: /etc/systemd/system/crio.service.d
+           └─10-mco-default-madv.conf, 10-mco-profile-unix-socket.conf, 20-nodenet.conf
+   Active: active (running) since Thu 2022-10-13 17:02:42 UTC; 48min ago
+     Docs: https://github.com/cri-o/cri-o
+ Main PID: 1774 (crio)
+    Tasks: 35
+   Memory: 5.2G
+      CPU: 3min 31.859s
+   CGroup: /system.slice/crio.service
+           └─1774 /usr/bin/crio
+
+Oct 13 17:51:07 master01 crio[1774]: time="2022-10-13 17:51:07.974668987Z" level=info msg="Checking image status: quay.io/veeraabose/do180-mysql-80-rhel8:latest" id=f4dc3f60-e869-40c7-8>
+Oct 13 17:51:07 master01 crio[1774]: time="2022-10-13 17:51:07.974889445Z" level=info msg="Image quay.io/veeraabose/do180-mysql-80-rhel8:latest not found" id=f4dc3f60-e869-40c7-8245-a73>
+Oct 13 17:51:14 master01 crio[1774]: time="2022-10-13 17:51:14.973415073Z" level=info msg="Checking image status: quay.io/veeraabose/do180-quote-php:latest" id=3ad12059-2e63-487f-b285-5>
+Oct 13 17:51:14 master01 crio[1774]: time="2022-10-13 17:51:14.973672391Z" level=info msg="Image quay.io/veeraabose/do180-quote-php:latest not found" id=3ad12059-2e63-487f-b285-587dd69a>
+Oct 13 17:51:18 master01 crio[1774]: time="2022-10-13 17:51:18.974232830Z" level=info msg="Checking image status: quay.io/veeraabose/do180-mysql-80-rhel8:latest" id=36effe46-aceb-493c-9>
+Oct 13 17:51:18 master01 crio[1774]: time="2022-10-13 17:51:18.974565488Z" level=info msg="Image quay.io/veeraabose/do180-mysql-80-rhel8:latest not found" id=36effe46-aceb-493c-92e1-122>
+Oct 13 17:51:28 master01 crio[1774]: time="2022-10-13 17:51:28.974507850Z" level=info msg="Checking image status: quay.io/veeraabose/do180-quote-php:latest" id=d1ecdff9-96c0-4c0e-a81d-8>
+Oct 13 17:51:28 master01 crio[1774]: time="2022-10-13 17:51:28.974866955Z" level=info msg="Image quay.io/veeraabose/do180-quote-php:latest not found" id=d1ecdff9-96c0-4c0e-a81d-821e273e>
+Oct 13 17:51:29 master01 crio[1774]: time="2022-10-13 17:51:29.973354100Z" level=info msg="Checking image status: quay.io/veeraabose/do180-mysql-80-rhel8:latest" id=3f8d40e5-1bde-4c7e-a>
+Oct 13 17:51:29 master01 crio[1774]: time="2022-10-13 17:51:29.973714647Z" level=info msg="Image quay.io/veeraabose/do180-mysql-80-rhel8:latest not found" id=3f8d40e5-1bde-4c7e-a647-97c>
+sh-4.4# crictl ps --name etcd          
+CONTAINER           IMAGE                                                                                                                    CREATED             STATE               NAME                  ATTEMPT             POD ID
+7ca0133927913       quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:fe8d01e2de1a04428b2dfd71711a6893ea84ad22890ea29ca92185705fc11f48   49 minutes ago      Running             etcd-health-monitor   13                  91c22e7abc8f3
+3ea1d997a2d2d       0de0f377b0c457a2e16e7fc161782b95af27694459bf00c0066f94ad4ced9a91                                                         49 minutes ago      Running             etcd-metrics          13                  91c22e7abc8f3
+83e03d55f6bcd       0de0f377b0c457a2e16e7fc161782b95af27694459bf00c0066f94ad4ced9a91                                                         49 minutes ago      Running             etcd                  13                  91c22e7abc8f3
+2843dad9e79c8       0de0f377b0c457a2e16e7fc161782b95af27694459bf00c0066f94ad4ced9a91                                                         49 minutes ago      Running             etcdctl               13                  91c22e7abc8f3
+sh-4.4# exit
+exit
+sh-4.4# exit
+exit
+
+Removing debug pod ...
+[student@workstation ~]$ oc project install-troubleshoot
+Now using project "install-troubleshoot" on server "https://api.ocp4.example.com:6443".
+[student@workstation ~]$ image-registry-589dbd88dd-wld7p
+bash: image-registry-589dbd88dd-wld7p: command not found...
+[student@workstation ~]$ oc get pods
+NAME                    READY   STATUS             RESTARTS   AGE
+psql-768d797946-ljvj2   0/1     ImagePullBackOff   0          13m
+[student@workstation ~]$ oc status
+In project install-troubleshoot on server https://api.ocp4.example.com:6443
+
+svc/psql - 172.30.120.214:5432
+
+deployment/psql deploys registry.redhat.io/rhel8/postgresq-13:1
+  deployment #1 running for 13 minutes - 0/1 pods
+
+View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.
+[student@workstation ~]$ oc get events
+LAST SEEN   TYPE      REASON              OBJECT                       MESSAGE
+14m         Normal    Scheduled           pod/psql-768d797946-ljvj2    Successfully assigned install-troubleshoot/psql-768d797946-ljvj2 to master02
+14m         Normal    AddedInterface      pod/psql-768d797946-ljvj2    Add eth0 [10.8.0.35/23] from openshift-sdn
+12m         Normal    Pulling             pod/psql-768d797946-ljvj2    Pulling image "registry.redhat.io/rhel8/postgresq-13:1"
+12m         Warning   Failed              pod/psql-768d797946-ljvj2    Failed to pull image "registry.redhat.io/rhel8/postgresq-13:1": rpc error: code = Unknown desc = reading manifest 1 in registry.redhat.io/rhel8/postgresq-13: unknown: Not Found
+12m         Warning   Failed              pod/psql-768d797946-ljvj2    Error: ErrImagePull
+4m10s       Normal    BackOff             pod/psql-768d797946-ljvj2    Back-off pulling image "registry.redhat.io/rhel8/postgresq-13:1"
+12m         Warning   Failed              pod/psql-768d797946-ljvj2    Error: ImagePullBackOff
+14m         Normal    SuccessfulCreate    replicaset/psql-768d797946   Created pod: psql-768d797946-ljvj2
+14m         Normal    ScalingReplicaSet   deployment/psql              Scaled up replica set psql-768d797946 to 1
+[student@workstation ~]$ podman login registry.redhat.io
+Username: veeraabose
+Password: 
+Login Succeeded!
+[student@workstation ~]$ skopeo inspect docker://registry.redhat.io/rhel8/postgresq-13:1
+FATA[0001] Error parsing image name "docker://registry.redhat.io/rhel8/postgresq-13:1": reading manifest 1 in registry.redhat.io/rhel8/postgresq-13: unknown: Not Found 
+[student@workstation ~]$ oc get deploy
+NAME   READY   UP-TO-DATE   AVAILABLE   AGE
+psql   0/1     1            0           16m
+[student@workstation ~]$ oc edit deployment psql
+deployment.apps/psql edited
+[student@workstation ~]$ oc get pods
+NAME                    READY   STATUS             RESTARTS   AGE
+psql-768d797946-ljvj2   0/1     ImagePullBackOff   0          17m
+psql-f9957b75d-dvjwx    0/1     ErrImagePull       0          8s
+[student@workstation ~]$ oc get pods
+NAME                    READY   STATUS             RESTARTS   AGE
+psql-768d797946-ljvj2   0/1     ImagePullBackOff   0          17m
+psql-f9957b75d-dvjwx    0/1     ErrImagePull       0          15s
+[student@workstation ~]$ oc status
+In project install-troubleshoot on server https://api.ocp4.example.com:6443
+
+svc/psql - 172.30.120.214:5432
+
+deployment/psql deploys registry.redhat.io/rhel8/postgresq-13:1-7
+  deployment #2 running for 35 seconds - 0/1 pods
+  deployment #1 deployed 17 minutes ago - 0/1 pods
+
+View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.
+[student@workstation ~]$ oc get pods
+NAME                    READY   STATUS             RESTARTS   AGE
+psql-768d797946-ljvj2   0/1     ImagePullBackOff   0          18m
+psql-f9957b75d-dvjwx    0/1     ErrImagePull       0          57s
+[student@workstation ~]$ oc get events
+LAST SEEN   TYPE      REASON              OBJECT                       MESSAGE
+18m         Normal    Scheduled           pod/psql-768d797946-ljvj2    Successfully assigned install-troubleshoot/psql-768d797946-ljvj2 to master02
+18m         Normal    AddedInterface      pod/psql-768d797946-ljvj2    Add eth0 [10.8.0.35/23] from openshift-sdn
+17m         Normal    Pulling             pod/psql-768d797946-ljvj2    Pulling image "registry.redhat.io/rhel8/postgresq-13:1"
+17m         Warning   Failed              pod/psql-768d797946-ljvj2    Failed to pull image "registry.redhat.io/rhel8/postgresq-13:1": rpc error: code = Unknown desc = reading manifest 1 in registry.redhat.io/rhel8/postgresq-13: unknown: Not Found
+17m         Warning   Failed              pod/psql-768d797946-ljvj2    Error: ErrImagePull
+3m27s       Normal    BackOff             pod/psql-768d797946-ljvj2    Back-off pulling image "registry.redhat.io/rhel8/postgresq-13:1"
+16m         Warning   Failed              pod/psql-768d797946-ljvj2    Error: ImagePullBackOff
+18m         Normal    SuccessfulCreate    replicaset/psql-768d797946   Created pod: psql-768d797946-ljvj2
+85s         Normal    Scheduled           pod/psql-f9957b75d-dvjwx     Successfully assigned install-troubleshoot/psql-f9957b75d-dvjwx to master02
+83s         Normal    AddedInterface      pod/psql-f9957b75d-dvjwx     Add eth0 [10.8.0.38/23] from openshift-sdn
+43s         Normal    Pulling             pod/psql-f9957b75d-dvjwx     Pulling image "registry.redhat.io/rhel8/postgresq-13:1-7"
+41s         Warning   Failed              pod/psql-f9957b75d-dvjwx     Failed to pull image "registry.redhat.io/rhel8/postgresq-13:1-7": rpc error: code = Unknown desc = reading manifest 1-7 in registry.redhat.io/rhel8/postgresq-13: unknown: Not Found
+41s         Warning   Failed              pod/psql-f9957b75d-dvjwx     Error: ErrImagePull
+14s         Normal    BackOff             pod/psql-f9957b75d-dvjwx     Back-off pulling image "registry.redhat.io/rhel8/postgresq-13:1-7"
+14s         Warning   Failed              pod/psql-f9957b75d-dvjwx     Error: ImagePullBackOff
+85s         Normal    SuccessfulCreate    replicaset/psql-f9957b75d    Created pod: psql-f9957b75d-dvjwx
+18m         Normal    ScalingReplicaSet   deployment/psql              Scaled up replica set psql-768d797946 to 1
+85s         Normal    ScalingReplicaSet   deployment/psql              Scaled up replica set psql-f9957b75d to 1
+[student@workstation ~]$ oc edit deployment psql
+deployment.apps/psql edited
+[student@workstation ~]$ oc get deployment
+NAME   READY   UP-TO-DATE   AVAILABLE   AGE
+psql   0/1     1            0           21m
+[student@workstation ~]$ oc status
+In project install-troubleshoot on server https://api.ocp4.example.com:6443
+
+svc/psql - 172.30.120.214:5432
+
+deployment/psql deploys registry.redhat.io/rhel8/postgresql-13:1-7
+  deployment #3 running for 15 seconds - 0/1 pods
+  deployment #2 deployed 4 minutes ago - 0/1 pods
+  deployment #1 deployed 21 minutes ago
+
+View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.
+[student@workstation ~]$ oc get event
+LAST SEEN   TYPE      REASON              OBJECT                       MESSAGE
+21m         Normal    Scheduled           pod/psql-768d797946-ljvj2    Successfully assigned install-troubleshoot/psql-768d797946-ljvj2 to master02
+21m         Normal    AddedInterface      pod/psql-768d797946-ljvj2    Add eth0 [10.8.0.35/23] from openshift-sdn
+19m         Normal    Pulling             pod/psql-768d797946-ljvj2    Pulling image "registry.redhat.io/rhel8/postgresq-13:1"
+19m         Warning   Failed              pod/psql-768d797946-ljvj2    Failed to pull image "registry.redhat.io/rhel8/postgresq-13:1": rpc error: code = Unknown desc = reading manifest 1 in registry.redhat.io/rhel8/postgresq-13: unknown: Not Found
+19m         Warning   Failed              pod/psql-768d797946-ljvj2    Error: ErrImagePull
+76s         Normal    BackOff             pod/psql-768d797946-ljvj2    Back-off pulling image "registry.redhat.io/rhel8/postgresq-13:1"
+19m         Warning   Failed              pod/psql-768d797946-ljvj2    Error: ImagePullBackOff
+21m         Normal    SuccessfulCreate    replicaset/psql-768d797946   Created pod: psql-768d797946-ljvj2
+23s         Normal    SuccessfulDelete    replicaset/psql-768d797946   Deleted pod: psql-768d797946-ljvj2
+22s         Normal    Scheduled           pod/psql-cdf8f86f8-nd8bc     Successfully assigned install-troubleshoot/psql-cdf8f86f8-nd8bc to master01
+20s         Normal    AddedInterface      pod/psql-cdf8f86f8-nd8bc     Add eth0 [10.9.0.20/23] from openshift-sdn
+20s         Normal    Pulling             pod/psql-cdf8f86f8-nd8bc     Pulling image "registry.redhat.io/rhel8/postgresql-13:1-7"
+23s         Normal    SuccessfulCreate    replicaset/psql-cdf8f86f8    Created pod: psql-cdf8f86f8-nd8bc
+4m13s       Normal    Scheduled           pod/psql-f9957b75d-dvjwx     Successfully assigned install-troubleshoot/psql-f9957b75d-dvjwx to master02
+4m12s       Normal    AddedInterface      pod/psql-f9957b75d-dvjwx     Add eth0 [10.8.0.38/23] from openshift-sdn
+2m49s       Normal    Pulling             pod/psql-f9957b75d-dvjwx     Pulling image "registry.redhat.io/rhel8/postgresq-13:1-7"
+2m47s       Warning   Failed              pod/psql-f9957b75d-dvjwx     Failed to pull image "registry.redhat.io/rhel8/postgresq-13:1-7": rpc error: code = Unknown desc = reading manifest 1-7 in registry.redhat.io/rhel8/postgresq-13: unknown: Not Found
+2m47s       Warning   Failed              pod/psql-f9957b75d-dvjwx     Error: ErrImagePull
+2m6s        Normal    BackOff             pod/psql-f9957b75d-dvjwx     Back-off pulling image "registry.redhat.io/rhel8/postgresq-13:1-7"
+2m21s       Warning   Failed              pod/psql-f9957b75d-dvjwx     Error: ImagePullBackOff
+4m14s       Normal    SuccessfulCreate    replicaset/psql-f9957b75d    Created pod: psql-f9957b75d-dvjwx
+21m         Normal    ScalingReplicaSet   deployment/psql              Scaled up replica set psql-768d797946 to 1
+4m14s       Normal    ScalingReplicaSet   deployment/psql              Scaled up replica set psql-f9957b75d to 1
+23s         Normal    ScalingReplicaSet   deployment/psql              Scaled down replica set psql-768d797946 to 0
+23s         Normal    ScalingReplicaSet   deployment/psql              Scaled up replica set psql-cdf8f86f8 to 1
+[student@workstation ~]$ oc get pods
+NAME                   READY   STATUS    RESTARTS   AGE
+psql-cdf8f86f8-nd8bc   1/1     Running   0          34s
+[student@workstation ~]$ lab install-troubleshoot finish
+
+Completing Guided Exercise: Troubleshooting OpenShift Clusters and Applications
+
+ · Delete OpenShift project 'install-troubleshoot'.............  SUCCESS
+ · Wait for project 'install-troubleshoot' to be gone..........  SUCCESS
+ · Remove exercise files.......................................  SUCCESS
+
+Please use start if you wish to do the exercise again.
+
+[student@workstation ~]$ 
+--------------------------------------------------GE-Introducing OpenShift Dynamic Storage--------------------------------
 
