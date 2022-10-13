@@ -3511,4 +3511,338 @@ Please use start if you wish to do the exercise again.
 
 [student@workstation ~]$ 
 --------------------------------------------------GE-Introducing OpenShift Dynamic Storage--------------------------------
+[student@workstation ~]$ lab install-storage start
 
+Checking prerequisites for Guided Exercise: Introducing OpenShift Dynamic Storage
+
+ Verify the OpenShift cluster is running:
+ · Router pods are available...................................  SUCCESS
+ · OAuth pods are available....................................  SUCCESS
+ · API pods are available......................................  SUCCESS
+ · Control plane node 'master01' is ready......................  SUCCESS
+ · Control plane node 'master02' is ready......................  SUCCESS
+ · Control plane node 'master03' is ready......................  SUCCESS
+ Checking for conflicts with existing OpenShift projects:
+ · The 'install-storage' project is absent.....................  SUCCESS
+
+Setting up the classroom for Guided Exercise: Introducing OpenShift Dynamic Storage
+
+ · Download exercise files.....................................  SUCCESS
+ · Persistent volume claim 'postgresql-storage' is not present.  SUCCESS
+ · Application 'postgres-persistent' is not present............  SUCCESS
+ · Application 'postgres-persistent2' is not present...........  SUCCESS
+
+Overall start status...........................................  SUCCESS
+
+[student@workstation ~]$ source /usr/local/etc/ocp4.config
+[student@workstation ~]$ oc login -u kubeadmin -p ${RHT_OCP4_KUBEADM_PASSWD} https://api.ocp4.example.com:6443
+Login successful.
+
+You have access to 68 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "default".
+[student@workstation ~]$ oc new-project install-storage
+Now using project "install-storage" on server "https://api.ocp4.example.com:6443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app rails-postgresql-example
+
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=k8s.gcr.io/e2e-test-images/agnhost:2.33 -- /agnhost serve-hostname
+
+[student@workstation ~]$ oc get projects
+NAME                                               DISPLAY NAME      STATUS
+common                                                               Active
+default                                                              Active
+developer-deploy                                                     Active
+install-storage                                                      Active
+kube-node-lease                                                      Active
+kube-public                                                          Active
+kube-system                                                          Active
+nfs-client-provisioner                             NFS Provisioner   Active
+openshift                                                            Active
+openshift-apiserver                                                  Active
+openshift-apiserver-operator                                         Active
+openshift-authentication                                             Active
+openshift-authentication-operator                                    Active
+openshift-cloud-controller-manager                                   Active
+openshift-cloud-controller-manager-operator                          Active
+openshift-cloud-credential-operator                                  Active
+openshift-cloud-network-config-controller                            Active
+openshift-cluster-csi-drivers                                        Active
+openshift-cluster-machine-approver                                   Active
+openshift-cluster-node-tuning-operator                               Active
+openshift-cluster-samples-operator                                   Active
+openshift-cluster-storage-operator                                   Active
+openshift-cluster-version                                            Active
+openshift-config                                                     Active
+openshift-config-managed                                             Active
+openshift-config-operator                                            Active
+openshift-console                                                    Active
+openshift-console-operator                                           Active
+openshift-console-user-settings                                      Active
+openshift-controller-manager                                         Active
+openshift-controller-manager-operator                                Active
+openshift-dns                                                        Active
+openshift-dns-operator                                               Active
+openshift-etcd                                                       Active
+openshift-etcd-operator                                              Active
+openshift-host-network                                               Active
+openshift-image-registry                                             Active
+openshift-infra                                                      Active
+openshift-ingress                                                    Active
+openshift-ingress-canary                                             Active
+openshift-ingress-operator                                           Active
+openshift-insights                                                   Active
+openshift-kni-infra                                                  Active
+openshift-kube-apiserver                                             Active
+openshift-kube-apiserver-operator                                    Active
+openshift-kube-controller-manager                                    Active
+openshift-kube-controller-manager-operator                           Active
+openshift-kube-scheduler                                             Active
+openshift-kube-scheduler-operator                                    Active
+openshift-kube-storage-version-migrator                              Active
+openshift-kube-storage-version-migrator-operator                     Active
+openshift-machine-api                                                Active
+openshift-machine-config-operator                                    Active
+openshift-marketplace                                                Active
+openshift-monitoring                                                 Active
+openshift-multus                                                     Active
+openshift-network-diagnostics                                        Active
+openshift-network-operator                                           Active
+openshift-node                                                       Active
+openshift-oauth-apiserver                                            Active
+openshift-openstack-infra                                            Active
+openshift-operator-lifecycle-manager                                 Active
+openshift-operators                                                  Active
+openshift-ovirt-infra                                                Active
+openshift-sdn                                                        Active
+openshift-service-ca                                                 Active
+openshift-service-ca-operator                                        Active
+openshift-user-workload-monitoring                                   Active
+openshift-vsphere-infra                                              Active
+[student@workstation ~]$ oc get storageclass
+NAME                    PROVISIONER                                   RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
+nfs-storage (default)   k8s-sigs.io/nfs-subdir-external-provisioner   Delete          Immediate           false                  77d
+[student@workstation ~]$ oc new-app --name postgresql-persistent --image registry.redhat.io/rhel8/postgresql-13:1-7 -e POSTGRESQL_USER=redhat -e POSTGRESQL_PASSWORD=redhat123 -e POSTGRESQL_DATABASE=persistentdb
+--> Found container image cafc055 (17 months old) from registry.redhat.io for "registry.redhat.io/rhel8/postgresql-13:1-7"
+
+    PostgreSQL 13 
+    ------------- 
+    PostgreSQL is an advanced Object-Relational database management system (DBMS). The image contains the client and server programs that you'll need to create, run, maintain and access a PostgreSQL DBMS server.
+
+    Tags: database, postgresql, postgresql13, postgresql-13
+
+    * An image stream tag will be created as "postgresql-persistent:1-7" that will track this image
+
+--> Creating resources ...
+    imagestream.image.openshift.io "postgresql-persistent" created
+    deployment.apps "postgresql-persistent" created
+    service "postgresql-persistent" created
+--> Success
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose service/postgresql-persistent' 
+    Run 'oc status' to view your app.
+[student@workstation ~]$ oc status
+In project install-storage on server https://api.ocp4.example.com:6443
+
+svc/postgresql-persistent - 172.30.228.100:5432
+  deployment/postgresql-persistent deploys istag/postgresql-persistent:1-7 
+    deployment #2 running for 7 seconds - 1 pod
+    deployment #1 deployed 9 seconds ago
+
+
+1 info identified, use 'oc status --suggest' to see details.
+[student@workstation ~]$ oc et pods
+error: unknown command "et" for "oc"
+
+Did you mean this?
+	cp
+	edit
+	get
+	set
+[student@workstation ~]$ oc get pods
+NAME                                     READY   STATUS    RESTARTS   AGE
+postgresql-persistent-7c868bc77c-p5gpz   1/1     Running   0          21s
+[student@workstation ~]$ cat ~/DO280/labs/install-storage/commands.txt
+# Create the postgresql-persistent deployment
+oc new-app --name postgresql-persistent \
+  --image registry.redhat.io/rhel8/postgresql-13:1-7 \
+  -e POSTGRESQL_USER=redhat \
+  -e POSTGRESQL_PASSWORD=redhat123 \
+  -e POSTGRESQL_DATABASE=persistentdb
+
+
+# Create a PVC and volume for the postgresql-persistent deployment
+oc set volumes deployment/postgresql-persistent \
+  --add --name postgresql-storage --type pvc --claim-class nfs-storage \
+  --claim-mode rwo --claim-size 10Gi --mount-path /var/lib/pgsql \
+  --claim-name postgresql-storage
+
+
+# List persistent volumes with custom columns
+oc get pv \
+  -o custom-columns=NAME:.metadata.name,CLAIM:.spec.claimRef.name
+
+# Create the postgresql-persistent2 deployment
+oc new-app --name postgresql-persistent2 \
+  --image registry.redhat.io/rhel8/postgresql-13:1-7 \
+  -e POSTGRESQL_USER=redhat \
+  -e POSTGRESQL_PASSWORD=redhat123 \
+  -e POSTGRESQL_DATABASE=persistentdb
+
+
+# Attach the existing PVC to the postgresql-persistent2 deployment
+oc set volumes \
+  deployment/postgresql-persistent2 \
+  --add --name postgresql-storage --type pvc \
+  --claim-name postgresql-storage --mount-path /var/lib/pgsql
+
+[student@workstation ~]$ oc set volumes deployment/postgresql-persistent --add --name postgresql-storage --type pvc --claim-class nfs-storage --claim-mode rwo --claim-size 10Gi --mount-path /var/lib/pgsql --claim-name postgresql-storage
+deployment.apps/postgresql-persistent volume updated
+[student@workstation ~]$ oc get pv
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                                     STORAGECLASS   REASON   AGE
+pvc-1010c4b2-da69-4190-93b4-7f299fe83f66   5Gi        RWO            Delete           Bound    common/nexus-pv                           nfs-storage             76d
+pvc-554870a3-cfc1-44cb-8fc5-0def104af532   20Gi       RWX            Delete           Bound    openshift-image-registry/registry-claim   nfs-storage             77d
+pvc-a2f52f65-329d-49c3-b0cd-d5b92c2b5514   10Gi       RWO            Delete           Bound    install-storage/postgresql-storage        nfs-storage             8s
+pvc-aecac07b-431d-42b9-ac7a-5cd436e27abb   1Mi        RWO            Delete           Bound    developer-deploy/dbinit                   nfs-storage             25h
+pvc-c340ac9a-425e-428d-bfd3-87adea21a131   10Mi       RWO            Delete           Bound    developer-deploy/dbclaim                  nfs-storage             25h
+[student@workstation ~]$ oc get pvc
+NAME                 STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+postgresql-storage   Bound    pvc-a2f52f65-329d-49c3-b0cd-d5b92c2b5514   10Gi       RWO            nfs-storage    43s
+[student@workstation ~]$ oc get pv -o custom-columns=NAME:.metadata.name,CLAIM:.spec.claimRef.name
+NAME                                       CLAIM
+pvc-1010c4b2-da69-4190-93b4-7f299fe83f66   nexus-pv
+pvc-554870a3-cfc1-44cb-8fc5-0def104af532   registry-claim
+pvc-a2f52f65-329d-49c3-b0cd-d5b92c2b5514   postgresql-storage
+pvc-aecac07b-431d-42b9-ac7a-5cd436e27abb   dbinit
+pvc-c340ac9a-425e-428d-bfd3-87adea21a131   dbclaim
+[student@workstation ~]$ cd ~/DO280/labs/install-storage
+[student@workstation install-storage]$ ./init_data.sh
+Populating characters table
+CREATE TABLE
+INSERT 0 5
+[student@workstation install-storage]$ cat init_data.s
+cat: init_data.s: No such file or directory
+[student@workstation install-storage]$ cat init_data.sh 
+#!/bin/bash
+
+echo "Populating characters table"
+oc exec deployment.apps/postgresql-persistent -i redhat123 -- /usr/bin/psql -U redhat persistentdb < /home/student/DO280/labs/install-storage/init_data.sql
+
+[student@workstation install-storage]$ cat check_data.sh 
+#!/bin/bash
+
+echo "Checking characters table"
+
+if [ "$(oc get pods -o name -l deployment=postgresql-persistent)" != "" ]
+then
+  APP="deployment/postgresql-persistent"
+elif [ "$(oc get pods -o name -l deployment=postgresql-persistent2)" != "" ]
+then
+  APP="deployment/postgresql-persistent2"
+else
+  echo "ERROR: deployment/postgresql-persistent not found"
+  echo "ERROR: deployment/postgresql-persistent2 not found"
+fi
+
+if [ -n "${APP}" ]
+then
+  if [[ "$(oc exec ${APP} -i redhat123 -t -- /usr/bin/psql -U redhat persistentdb -c '\d characters' 2>&1)" != *"exit code 1"* ]]
+  then
+    OUTPUT=$(oc exec ${APP} -i redhat123 -t -- /usr/bin/psql -U redhat persistentdb -c 'select id,name,nationality from characters' 2>&1)
+  fi
+fi
+
+if [ -n "${OUTPUT}" ]
+then
+  echo "${OUTPUT}"
+else
+  echo "ERROR: 'characters' table does not exist"
+fi
+[student@workstation install-storage]$ ./check_data.sh h
+Checking characters table
+ id |          name           |           nationality            
+----+-------------------------+----------------------------------
+  1 | Wolfgang Amadeus Mozart | Prince-Archbishopric of Salzburg
+  2 | Ludwig van Beethoven    | Bonn, Germany
+  3 | Johann Sebastian Bach   | Eisenach, Germany
+  4 | José Pablo Moncayo     | Guadalajara, México
+  5 | Niccolò Paganini       | Genoa, Italy
+(5 rows)
+
+[student@workstation install-storage]$ oc delete all -l app=postgresql-persistent
+service "postgresql-persistent" deleted
+deployment.apps "postgresql-persistent" deleted
+imagestream.image.openshift.io "postgresql-persistent" deleted
+[student@workstation install-storage]$ oc new-app --name postgresql-persistent2 --image registry.redhat.io/rhel8/postgresql-13:1-7 -e POSTGRESQL_USER=redhat -e POSTGRESQL_PASSWORD=redhat123 -e POSTGRESQL_DATABASE=persistentdb
+--> Found container image cafc055 (17 months old) from registry.redhat.io for "registry.redhat.io/rhel8/postgresql-13:1-7"
+
+    PostgreSQL 13 
+    ------------- 
+    PostgreSQL is an advanced Object-Relational database management system (DBMS). The image contains the client and server programs that you'll need to create, run, maintain and access a PostgreSQL DBMS server.
+
+    Tags: database, postgresql, postgresql13, postgresql-13
+
+    * An image stream tag will be created as "postgresql-persistent2:1-7" that will track this image
+
+--> Creating resources ...
+    imagestream.image.openshift.io "postgresql-persistent2" created
+    deployment.apps "postgresql-persistent2" created
+    service "postgresql-persistent2" created
+--> Success
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose service/postgresql-persistent2' 
+    Run 'oc status' to view your app.
+[student@workstation install-storage]$ ./check_data.sh 
+Checking characters table
+ERROR: 'characters' table does not exist
+[student@workstation install-storage]$ oc set volumes deployment/postgresql-persistent2 --add --name postgresql-storage --type pvc --claim-name postgresql-storage --mount-path /var/lib/pgsql
+deployment.apps/postgresql-persistent2 volume updated
+[student@workstation install-storage]$ ./check_data.sh 
+Checking characters table
+ id |          name           |           nationality            
+----+-------------------------+----------------------------------
+  1 | Wolfgang Amadeus Mozart | Prince-Archbishopric of Salzburg
+  2 | Ludwig van Beethoven    | Bonn, Germany
+  3 | Johann Sebastian Bach   | Eisenach, Germany
+  4 | José Pablo Moncayo     | Guadalajara, México
+  5 | Niccolò Paganini       | Genoa, Italy
+(5 rows)
+
+[student@workstation install-storage]$ oc delete all -l app=postgresql-persistent2
+service "postgresql-persistent2" deleted
+deployment.apps "postgresql-persistent2" deleted
+imagestream.image.openshift.io "postgresql-persistent2" deleted
+[student@workstation install-storage]$ oc delete pvc/postgresql-storage
+persistentvolumeclaim "postgresql-storage" deleted
+[student@workstation install-storage]$ cd ~
+[student@workstation ~]$ lab install-storage finish
+
+Completing Guided Exercise: Introducing OpenShift Dynamic Storage
+
+ · Delete OpenShift project 'install-storage'..................  SUCCESS
+ · Wait for project 'install-storage' to be gone...............  SUCCESS
+ · Remove exercise files.......................................  SUCCESS
+
+Please use start if you wish to do the exercise again.
+
+[student@workstation ~]$ 
+------------------------------------------Summary-----------------------------
+
+Summary
+In this chapter, you learned:
+
+• Red Hat OpenShift Container Platform provides two main installation methods: full-stack
+automation, and pre-existing infrastructure.
+• Future releases are expected to add more cloud and virtualization providers, such as VMware,
+Red Hat Virtualization, and IBM System Z.
+• An OpenShift node based on Red Hat Enterprise Linux CoreOS runs very few local services that
+would require direct access to a node to inspect their status. Most of the system services run as
+containers, the main exceptions are the CRI-O container engine and the Kubelet.
+• The oc get node, oc adm top, oc adm node-logs, and oc debug commands provide
+troubleshooting information about OpenShift nodes
+
+------------------------------------------------------------------------14Oct22------------------------------------------.
