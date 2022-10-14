@@ -3655,14 +3655,18 @@ svc/postgresql-persistent - 172.30.228.100:5432
 
 
 1 info identified, use 'oc status --suggest' to see details.
-[student@workstation ~]$ oc et pods
-error: unknown command "et" for "oc"
-
-Did you mean this?
-	cp
-	edit
-	get
-	set
+------------------------------------------------------------------------------------------
+SC --name=sc1
+|
+PVC ] --name=pvc1, specify sc=sc1, request = 10gi
+    ]
+    PV -- Automicatically created by SC
+    ]
+    ]
+Volume - --name=V1 , pvc=pcv1 (pod configutraiton)
+|
+Volume mointpoint  --name=vm1, volume=v1, mountpoint=/var/lib/mysql 
+---------------------------------------------------------------------------------------------
 [student@workstation ~]$ oc get pods
 NAME                                     READY   STATUS    RESTARTS   AGE
 postgresql-persistent-7c868bc77c-p5gpz   1/1     Running   0          21s
