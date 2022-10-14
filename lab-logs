@@ -3656,9 +3656,9 @@ svc/postgresql-persistent - 172.30.228.100:5432
 
 1 info identified, use 'oc status --suggest' to see details.
 ------------------------------------------------------------------------------------------
-SC --name=sc1
+SC --name=sc1    provisioner: kubernetes.io/azure-disk, reclaimPolicy: Retain, volumeBindingMode: WaitForFirstConsumer, allowVolumeExpansion: true  
 |
-PVC ] --name=pvc1, specify sc=sc1, request = 10gi
+PVC ] --name=pvc1, specify storageClassName=sc1, resourc.resequest.storage = 10gi, accessModes=readwriteonce
     ]
     PV -- Automicatically created by SC
     ]
