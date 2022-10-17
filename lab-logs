@@ -3849,4 +3849,295 @@ containers, the main exceptions are the CRI-O container engine and the Kubelet.
 • The oc get node, oc adm top, oc adm node-logs, and oc debug commands provide
 troubleshooting information about OpenShift nodes
 
-------------------------------------------------------------------------14Oct22------------------------------------------.
+------------------------------------------------------------------------17Oct22------------------------------------------.
+GE- Configuring Identity Providers
+[student@workstation ~]$ sudo su -
+Last login: Wed Oct 12 01:21:42 EDT 2022 on pts/0
+[root@workstation ~]# exit
+logout
+[student@workstation ~]$ 
+[student@workstation ~]$ lab auth-provider start
+
+Checking prerequisites for Guided Exercise: Configuring Identity Providers
+
+ Verify the OpenShift cluster is running:
+ · Router pods are available...................................  SUCCESS
+ · OAuth pods are available....................................  SUCCESS
+ · API pods are available......................................  SUCCESS
+ · Control plane node 'master01' is ready......................  SUCCESS
+ · Control plane node 'master02' is ready......................  SUCCESS
+ · Control plane node 'master03' is ready......................  SUCCESS
+ Checking for conflicts with existing OpenShift projects:
+ · The 'auth-provider' project is absent.......................  SUCCESS
+
+Setting up the classroom for Guided Exercise: Configuring Identity Providers
+
+ Preparing the student's workstation:
+ · Download exercise files.....................................  SUCCESS
+ · Download solution files.....................................  SUCCESS
+ Restoring authentication settings to installation defaults:
+ · No need to perform any change...............................  SUCCESS
+
+Overall start status...........................................  SUCCESS
+
+[student@workstation ~]$ source /usr/local/etc/ocp4.config
+[student@workstation ~]$ htpasswd -c -B -b ~/DO280/labs/auth-provider/htpasswd admin redhat
+Adding password for user admin
+[student@workstation ~]$ htpasswd -b ~/DO280/labs/auth-provider/htpasswd developer developer
+Adding password for user developer
+[student@workstation ~]$ cat ~/DO280/labs/auth-provider/htpasswd
+admin:$2y$05$Jho/8gbtUvtk90Qmmso0s.dI2CBpskCxbeyStVpcqkZJuv9tk/YTW
+developer:$apr1$GOSucLXM$jUNwIgHD7sMOndqVDH6mj.
+[student@workstation ~]$ oc login -u kubeadmin -p ${RHT_OCP4_KUBEADM_PASSWD} https://api.ocp4.example.com:6443
+Login successful.
+
+You have access to 68 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "default".
+[student@workstation ~]$ oc create secret generic localusers --from-file htpasswd=~/DO280/labs/auth-provider/htpasswd -n openshift-config
+secret/localusers created
+[student@workstation ~]$ oc adm policy add-cluster-role-to-user cluster-admin admin
+Warning: User 'admin' not found
+clusterrole.rbac.authorization.k8s.io/cluster-admin added: "admin"
+[student@workstation ~]$ oc get oauth cluster -o yaml > ~/DO280/labs/auth-provider/oauth.yaml
+[student@workstation ~]$ cd ~/DO280/solutions/
+[student@workstation solutions]$ cat auth-provider/
+cat: auth-provider/: Is a directory
+[student@workstation solutions]$ cd auth-provider/
+[student@workstation auth-provider]$ ls
+oauth.yaml
+[student@workstation auth-provider]$ cat oauth.yaml 
+apiVersion: config.openshift.io/v1
+kind: OAuth
+metadata:
+  name: cluster
+spec:
+  identityProviders:
+  - htpasswd:
+      fileData:
+        name: localusers
+    mappingMethod: claim
+    name: myusers
+    type: HTPasswd
+
+[student@workstation auth-provider]$ ^C
+[student@workstation auth-provider]$ cat ~/DO280/labs/auth-provider/oauth.yaml
+apiVersion: config.openshift.io/v1
+kind: OAuth
+metadata:
+  annotations:
+    include.release.openshift.io/ibm-cloud-managed: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"config.openshift.io/v1","kind":"OAuth","metadata":{"annotations":{},"name":"cluster"},"spec":{"identityProviders":[{"challenge":true,"htpasswd":{"fileData":{"name":"htpasswd-secret"}},"login":true,"mappingMethod":"claim","name":"htpasswd_provider","type":"HTPasswd"}]}}
+    release.openshift.io/create-only: "true"
+  creationTimestamp: "2022-07-28T16:11:32Z"
+  generation: 3
+  name: cluster
+  ownerReferences:
+  - apiVersion: config.openshift.io/v1
+    kind: ClusterVersion
+    name: version
+    uid: fe2b3641-43ba-4e03-8b6b-28a5696a5901
+  resourceVersion: "333513"
+  uid: 5177eecf-0fcf-48c0-b0cb-e2e3e7bd5f64
+spec: {}
+[student@workstation auth-provider]$ pwd
+/home/student/DO280/solutions/auth-provider
+[student@workstation auth-provider]$ oc replace -f oauth.yaml 
+oauth.config.openshift.io/cluster replaced
+[student@workstation auth-provider]$ oc get oauth cluster -o yaml | more
+apiVersion: config.openshift.io/v1
+kind: OAuth
+metadata:
+  creationTimestamp: "2022-07-28T16:11:32Z"
+  generation: 4
+  name: cluster
+  resourceVersion: "379930"
+  uid: 5177eecf-0fcf-48c0-b0cb-e2e3e7bd5f64
+spec:
+  identityProviders:
+  - htpasswd:
+      fileData:
+        name: localusers
+    mappingMethod: claim
+    name: myusers
+    type: HTPasswd
+[student@workstation auth-provider]$ oc login -u admin -p redhat
+Login successful.
+
+You have access to 68 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "default".
+[student@workstation auth-provider]$ oc get nodes
+NAME       STATUS   ROLES           AGE   VERSION
+master01   Ready    master,worker   81d   v1.23.3+e419edf
+master02   Ready    master,worker   81d   v1.23.3+e419edf
+master03   Ready    master,worker   81d   v1.23.3+e419edf
+[student@workstation auth-provider]$ oc login -u developer -p developer
+Login successful.
+
+You have one project on this server: "developer-deploy"
+
+Using project "developer-deploy".
+[student@workstation auth-provider]$ oc get nodes
+Error from server (Forbidden): nodes is forbidden: User "developer" cannot list resource "nodes" in API group "" at the cluster scope
+[student@workstation auth-provider]$ oc login -u admin -p redhat
+Login successful.
+
+You have access to 68 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "developer-deploy".
+[student@workstation auth-provider]$ oc get users
+NAME        UID                                    FULL NAME   IDENTITIES
+admin       05b3eece-a288-4c01-842f-f48201bc5481               myusers:admin
+developer   a5ebc71f-01b9-430a-93bb-9411c1c5668a               myusers:developer
+[student@workstation auth-provider]$ oc get identity
+NAME                IDP NAME   IDP USER NAME   USER NAME   USER UID
+myusers:admin       myusers    admin           admin       05b3eece-a288-4c01-842f-f48201bc5481
+myusers:developer   myusers    developer       developer   a5ebc71f-01b9-430a-93bb-9411c1c5668a
+[student@workstation auth-provider]$ oc extract secret/localusers -n openshift-config --to ~/DO280/labs/auth-provider/ --confirm
+/home/student/DO280/labs/auth-provider/htpasswd
+[student@workstation auth-provider]$ cd ~/DO280/labs/auth-provider/
+[student@workstation auth-provider]$ ls
+htpasswd  oauth.yaml
+[student@workstation auth-provider]$ cat htpasswd 
+admin:$2y$05$Jho/8gbtUvtk90Qmmso0s.dI2CBpskCxbeyStVpcqkZJuv9tk/YTW
+developer:$apr1$GOSucLXM$jUNwIgHD7sMOndqVDH6mj.
+[student@workstation auth-provider]$ htpasswd -b ~/DO280/labs/auth-provider/htpasswd manager redhat
+Adding password for user manager
+[student@workstation auth-provider]$ cat htpasswd 
+admin:$2y$05$Jho/8gbtUvtk90Qmmso0s.dI2CBpskCxbeyStVpcqkZJuv9tk/YTW
+developer:$apr1$GOSucLXM$jUNwIgHD7sMOndqVDH6mj.
+manager:$apr1$9eGeGnmJ$.YP7OIovMKst8t5CQej.G1
+[student@workstation auth-provider]$ oc set data secret/localusers --from-file htpasswd=~/DO280/labs/auth-provider/htpasswd -n openshift-config
+secret/localusers data updated
+[student@workstation auth-provider]$ oc login -u manager -p redhat
+Login failed (401 Unauthorized)
+Verify you have provided correct credentials.
+[student@workstation auth-provider]$ oc login -u manager -p redhat
+Login successful.
+
+You don't have any projects. You can try to create a new project, by running
+
+    oc new-project <projectname>
+
+[student@workstation auth-provider]$ oc new-project auth-provider
+Now using project "auth-provider" on server "https://api.ocp4.example.com:6443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app rails-postgresql-example
+
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=k8s.gcr.io/e2e-test-images/agnhost:2.33 -- /agnhost serve-hostname
+
+[student@workstation auth-provider]$ oc login -u developer -p developer
+Login successful.
+
+You have one project on this server: "developer-deploy"
+
+Using project "developer-deploy".
+[student@workstation auth-provider]$ oc delete project auth-provider
+Error from server (Forbidden): projects.project.openshift.io "auth-provider" is forbidden: User "developer" cannot delete resource "projects" in API group "project.openshift.io" in the namespace "auth-provider"
+[student@workstation auth-provider]$ oc login -u admin -p redhat
+Login successful.
+
+You have access to 69 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "developer-deploy".
+[student@workstation auth-provider]$ oc extract secret/localusers -n openshift-config --to ~/DO280/labs/auth-provider/ --confirm
+/home/student/DO280/labs/auth-provider/htpasswd
+[student@workstation auth-provider]$ MANAGER_PASSWD="$(openssl rand -hex 15)"
+[student@workstation auth-provider]$ echo $MANAGER_PASSWD
+267ff873596e96f3016bbcddb5285b
+[student@workstation auth-provider]$ htpasswd -b ~/DO280/labs/auth-provider/htpasswd manager ${MANAGER_PASSWD}
+Updating password for user manager
+[student@workstation auth-provider]$ oc set data secret/localusers --from-file htpasswd=~/DO280/labs/auth-provider/htpasswd -n openshift-config
+secret/localusers data updated
+[student@workstation auth-provider]$ oc login -u manager -p ${MANAGER_PASSWD}
+Login failed (401 Unauthorized)
+Verify you have provided correct credentials.
+[student@workstation auth-provider]$ oc login -u manager -p ${MANAGER_PASSWD}
+Login failed (401 Unauthorized)
+Verify you have provided correct credentials.
+[student@workstation auth-provider]$ oc login -u manager -p ${MANAGER_PASSWD}
+Login successful.
+
+You have one project on this server: "auth-provider"
+
+Using project "auth-provider".
+[student@workstation auth-provider]$ oc login -u admin -p redhat
+Login successful.
+
+You have access to 69 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "auth-provider".
+[student@workstation auth-provider]$ oc extract secret/localusers -n openshift-config --to ~/DO280/labs/auth-provider/ --confirm
+/home/student/DO280/labs/auth-provider/htpasswd
+[student@workstation auth-provider]$ htpasswd -D ~/DO280/labs/auth-provider/htpasswd manager
+Deleting password for user manager
+[student@workstation auth-provider]$ oc set data secret/localusers --from-file htpasswd=~/DO280/labs/auth-provider/htpasswd -n openshift-config
+secret/localusers data updated
+[student@workstation auth-provider]$ oc delete identity "myusers:manager"
+identity.user.openshift.io "myusers:manager" deleted
+[student@workstation auth-provider]$ oc delete user manager
+user.user.openshift.io "manager" deleted
+[student@workstation auth-provider]$ oc login -u manager -p ${MANAGER_PASSWD}
+Login failed (401 Unauthorized)
+Verify you have provided correct credentials.
+[student@workstation auth-provider]$ oc get users
+NAME        UID                                    FULL NAME   IDENTITIES
+admin       05b3eece-a288-4c01-842f-f48201bc5481               myusers:admin
+developer   a5ebc71f-01b9-430a-93bb-9411c1c5668a               myusers:developer
+[student@workstation auth-provider]$ oc get identity
+NAME                IDP NAME   IDP USER NAME   USER NAME   USER UID
+myusers:admin       myusers    admin           admin       05b3eece-a288-4c01-842f-f48201bc5481
+myusers:developer   myusers    developer       developer   a5ebc71f-01b9-430a-93bb-9411c1c5668a
+[student@workstation auth-provider]$ oc extract secret/localusers -n openshift-config --to -
+# htpasswd
+admin:$2y$05$Jho/8gbtUvtk90Qmmso0s.dI2CBpskCxbeyStVpcqkZJuv9tk/YTW
+developer:$apr1$GOSucLXM$jUNwIgHD7sMOndqVDH6mj.
+[student@workstation auth-provider]$ oc login -u kubeadmin -p ${RHT_OCP4_KUBEADM_PASSWD}
+Login successful.
+
+You have access to 69 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "auth-provider".
+[student@workstation auth-provider]$ oc delete project auth-provider
+project.project.openshift.io "auth-provider" deleted
+[student@workstation auth-provider]$ oc edit oauth
+oauth.config.openshift.io/cluster edited
+[student@workstation auth-provider]$ oc delete secret localusers -n openshift-config
+secret "localusers" deleted
+[student@workstation auth-provider]$ oc delete user --all
+user.user.openshift.io "admin" deleted
+user.user.openshift.io "developer" deleted
+[student@workstation auth-provider]$ oc delete identity --all
+identity.user.openshift.io "myusers:admin" deleted
+identity.user.openshift.io "myusers:developer" deleted
+[student@workstation auth-provider]$ lab auth-provider finish
+
+Completing Guided Exercise: Configuring Identity Providers
+
+ · Remove exercise files.......................................  FAIL
+
+Cannot continue due to the previous errors.....................  FAIL
+One or more terminal prompts is at /home/student/DO280/labs/auth-provider (or a subdirectory). Change to the /home/student/ directory and run 'lab auth-provider finish' again.
+
+[student@workstation auth-provider]$ cd
+[student@workstation ~]$ lab auth-provider finish
+
+Completing Guided Exercise: Configuring Identity Providers
+
+ · Remove exercise files.......................................  SUCCESS
+ · Remove solution files.......................................  SUCCESS
+
+Please use start if you wish to do the exercise again.
+
+[student@workstation ~]$ 
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
