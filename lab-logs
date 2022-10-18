@@ -4327,5 +4327,227 @@ Please use start if you wish to do the exercise again.
 
 [student@workstation ~]$ 
 
+-------------------------------------------------Lab - Configuring Authentication and Authorization-----------------------------------------------------
+[student@workstation ~]$ sudo su -
+Last login: Mon Oct 17 12:36:55 EDT 2022 on pts/0
+[root@workstation ~]# lab auth-review start
+
+Checking prerequisites for Lab: Configuring Authentication and Authorization
+
+ Verify the OpenShift cluster is running:
+ · Router pods are available...................................  SUCCESS
+ · OAuth pods are available....................................  SUCCESS
+ · API pods are available......................................  SUCCESS
+ · Control plane node 'master01' is ready......................  SUCCESS
+ · Control plane node 'master02' is ready......................  SUCCESS
+ · Control plane node 'master03' is ready......................  SUCCESS
+ Checking for conflicts with existing OpenShift projects:
+ · The 'auth-review' project is absent.........................  SUCCESS
+
+Setting up the classroom for Lab: Configuring Authentication and Authorization
+
+ Preparing the student's workstation:
+ · Download exercise files.....................................  SUCCESS
+ · Download solution files.....................................  SUCCESS
+ Restoring authentication settings to installation defaults:
+ · Removing 'cluster-admin' role from the 'admin' user.........  SUCCESS
+ · Remove HTPasswd secret: 'localusers'........................  SUCCESS
+ · Remove all configured Identity Providers....................  SUCCESS
+ · Remove all existing users...................................  SUCCESS
+ · Remove all existing identities..............................  SUCCESS
+
+Overall start status...........................................  SUCCESS
+
+[root@workstation ~]# cat ~/DO280/labs/auth-review/tmp_users analyst
+cat: /root/DO280/labs/auth-review/tmp_users: No such file or directory
+cat: analyst: No such file or directory
+[root@workstation ~]# cat ~/DO280/labs/auth-review/tmp_users
+cat: /root/DO280/labs/auth-review/tmp_users: No such file or directory
+[root@workstation ~]# exit
+logout
+[student@workstation ~]$ cat  ~/DO280/labs/auth-review/tmp_users
+analyst:$apr1$hWPR4T6T$ArBfJyvDF1rHDv6dpqyTY.
+tester:$apr1$eR/Ct6Pi$snWCZ.ecsMQNwYJhEHxYM1
+leader:$apr1$v5ldniVX$XwMiaUdkuQJ5lKz7ayEy/0
+[student@workstation ~]$ htpasswd -D ~/DO280/labs/auth-review/tmp_users analyst
+Deleting password for user analyst
+[student@workstation ~]$ for NAME in tester leader admin developer; do htpasswd -b ~/DO280/labs/auth-review/tmp_users ${NAME} 'L@bR3v!ew';done
+Updating password for user tester
+Updating password for user leader
+Adding password for user admin
+Adding password for user developer
+[student@workstation ~]$ cat ~/DO280/labs/auth-review/tmp_users
+tester:$apr1$qhq3yL0F$CtS9h6F8qNlxtj3TSdEJF0
+leader:$apr1$tr4Pr1DS$NOuX14FKiMSwh.mQ7iuSY1
+admin:$apr1$oLbzM99f$Tsqv.A8myIFFQhMN9K/Ei1
+developer:$apr1$Bbva2fua$eRi2Tl40BXEkmQAUodGHx.
+[student@workstation ~]$ source /usr/local/etc/ocp4.config
+[student@workstation ~]$ oc login -u kubeadmin -p ${RHT_OCP4_KUBEADM_PASSWD} https://api.ocp4.example.com:6443
+Login successful.
+
+You have access to 68 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "default".
+[student@workstation ~]$ oc create secret generic auth-review --from-file htpasswd=/home/student/DO280/labs/auth-review/tmp_users -n openshift-config
+secret/auth-review created
+[student@workstation ~]$ oc get oauth cluster -o yaml > ~/DO280/labs/auth-review/oauth.yaml
+[student@workstation ~]$ oc replace  ~/DO280/solutions/auth-review/oauth.yaml
+error: must specify one of -f and -k
+[student@workstation ~]$ oc replace -f ~/DO280/solutions/auth-review/oauth.yaml
+oauth.config.openshift.io/cluster replaced
+[student@workstation ~]$ watch oc get pods -n openshift-authentication
+[student@workstation ~]$ watch oc get pods -n openshift-authentication
+[student@workstation ~]$ oc adm policy add-cluster-role-to-user cluster-admin admin
+Warning: User 'admin' not found
+clusterrole.rbac.authorization.k8s.io/cluster-admin added: "admin"
+[student@workstation ~]$ oc login -u admin -p 'L@bR3v!ew'
+Login successful.
+
+You have access to 68 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "default".
+[student@workstation ~]$ oc get nodes
+NAME       STATUS   ROLES           AGE   VERSION
+master01   Ready    master,worker   82d   v1.23.3+e419edf
+master02   Ready    master,worker   82d   v1.23.3+e419edf
+master03   Ready    master,worker   82d   v1.23.3+e419edf
+[student@workstation ~]$ 
+[student@workstation ~]$ oc login -u developer -p 'L@bR3v!ew'
+Login successful.
+
+You have one project on this server: "developer-deploy"
+
+Using project "developer-deploy".
+[student@workstation ~]$ oc get nodes
+Error from server (Forbidden): nodes is forbidden: User "developer" cannot list resource "nodes" in API group "" at the cluster scope
+[student@workstation ~]$ oc login -u admin -p 'L@bR3v!ew'
+Login successful.
+
+You have access to 68 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "developer-deploy".
+[student@workstation ~]$ oc adm policy remove-cluster-role-from-group self-provisioner system:authenticated:oauth
+clusterrole.rbac.authorization.k8s.io/self-provisioner removed: "system:authenticated:oauth"
+[student@workstation ~]$ oc adm groups new managers
+group.user.openshift.io/managers created
+[student@workstation ~]$ oc adm groups add-users managers leader
+group.user.openshift.io/managers added: "leader"
+[student@workstation ~]$ oc adm policy add-cluster-role-to-group self-provisioner managers
+clusterrole.rbac.authorization.k8s.io/self-provisioner added: "managers"
+[student@workstation ~]$ oc login -u leader -p 'L@bR3v!ew'
+Login successful.
+
+You don't have any projects. You can try to create a new project, by running
+
+    oc new-project <projectname>
+
+[student@workstation ~]$ oc new-project auth-review
+Now using project "auth-review" on server "https://api.ocp4.example.com:6443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app rails-postgresql-example
+
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=k8s.gcr.io/e2e-test-images/agnhost:2.33 -- /agnhost serve-hostname
+
+[student@workstation ~]$ oc login -u admin -p 'L@bR3v!ew'
+Login successful.
+
+You have access to 69 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "auth-review".
+[student@workstation ~]$ oc adm groups new developers
+group.user.openshift.io/developers created
+[student@workstation ~]$ oc adm groups add-users developers developer
+group.user.openshift.io/developers added: "developer"
+[student@workstation ~]$ oc policy add-role-to-group edit developers
+clusterrole.rbac.authorization.k8s.io/edit added: "developers"
+[student@workstation ~]$ oc adm groups new qa
+group.user.openshift.io/qa created
+[student@workstation ~]$ oc adm groups add-users qa tester
+group.user.openshift.io/qa added: "tester"
+[student@workstation ~]$ oc policy add-role-to-group view qa
+clusterrole.rbac.authorization.k8s.io/view added: "qa"
+[student@workstation ~]$ lab auth-review grade
+
+Grading the student's work for Lab: Configuring Authentication and Authorization
+
+ · Cluster uses the HTPasswd identity provider.................  PASS
+ · User 'analyst' does not exist in the HTPasswd secret........  PASS
+ · The 'admin' user can log in with a password of 'L@bR3v!ew'..  PASS
+ · The 'admin' user has the 'cluster-admin' cluster role.......  PASS
+ · The 'self-provisioner' cluster role has been removed from th
+   e 'system:authenticated:oauth' group........................  PASS
+ · The 'managers' group exists.................................  PASS
+ · The 'managers' group has the 'self-provisioner' cluster role
+   ............................................................  PASS
+ · The 'managers' group contains the 'leader' user.............  PASS
+ · The 'leader' user can log in with a password of 'L@bR3v!ew'.  PASS
+ · The 'auth-review' project exists............................  PASS
+ · The 'leader' user has the 'admin' role on the 'auth-review' 
+   project.....................................................  PASS
+ · The 'developers' group exists...............................  PASS
+ · The 'developers' group has the 'edit' role on the 'auth-revi
+   ew' project.................................................  PASS
+ · The 'dvelopers' group contains the 'developer' user.........  PASS
+ · The 'developer' user can log in with a password of 'L@bR3v!e
+   w'..........................................................  PASS
+ · The 'qa' group exists.......................................  PASS
+ · The 'qa' group has the 'view' role on the 'auth-review' proj
+   ect.........................................................  PASS
+ · The 'qa' group contains the 'tester' user...................  PASS
+ · The 'tester' user can log in with a password of 'L@bR3v!ew'.  PASS
+
+Overall exercise grade.........................................  PASS
+
+[student@workstation ~]$ lab auth-review finish
+
+Completing Lab: Configuring Authentication and Authorization
+
+ · Delete OpenShift project 'auth-review'......................  SUCCESS
+ · Wait for project 'auth-review' to be gone...................  SUCCESS
+ · Remove exercise files.......................................  SUCCESS
+ · Remove solution files.......................................  SUCCESS
+ · Restore project creation privileges.........................  SUCCESS
+ · Removing the cluster role binding 'clusterrolebinding.rbac.a
+   uthorization.k8s.io/self-provisioner'.......................  SUCCESS
+ Restoring authentication settings to installation defaults:
+ · Removing 'cluster-admin' role from the 'admin' user.........  SUCCESS
+ · Remove HTPasswd secret: 'auth-review'.......................  SUCCESS
+ · Remove all configured Identity Providers....................  SUCCESS
+ · Remove all existing users...................................  SUCCESS
+ · Remove all existing groups..................................  SUCCESS
+ · Remove all existing identities..............................  SUCCESS
+
+Please use start if you wish to do the exercise again.
+
+[student@workstation ~]$ 
+
+Summary
+In this chapter, you learned:
+
+• A newly-installed OpenShift cluster provides two authentication methods that grant
+administrative access: the kubeconfig file and the kubeadmin virtual user.
+• The HTPasswd identity provider authenticates users against credentials stored in a secret. The
+name of the secret, and other settings for the identity provider, are stored inside the OAuth
+custom resource.
+• To manage user credentials using the HTPasswd identity provider, you must extract data from
+the secret, change that data using the htpasswd command, and then apply the data back to
+the secret.
+• Creating OpenShift users requires valid credentials, managed by an identity provider, plus user
+and identity resources.
+• Deleting OpenShift users requires deleting their credentials from the identity provider, and also
+deleting their user and identity resources.
+• OpenShift uses role-based access control (RBAC) to control user actions. A role is a collection
+of rules that govern interaction with OpenShift resources. Default roles exist for cluster
+administrators, developers, and auditors.
+• To control user interaction, assign a user to one or more roles. A role binding contains all of the
+associations of a role to users and groups.
+
+---------------------------------------------------------19Oct22-------------------------------------------------
+• To grant a user cluster administrator privileges, assign the cluster-admin role to that user.• 
+
 
 
