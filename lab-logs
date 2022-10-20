@@ -4545,9 +4545,9 @@ of rules that govern interaction with OpenShift resources. Default roles exist f
 administrators, developers, and auditors.
 • To control user interaction, assign a user to one or more roles. A role binding contains all of the
 associations of a role to users and groups.
+• To grant a user cluster administrator privileges, assign the cluster-admin role to that user.
 
 ---------------------------------------------------------19Oct22-------------------------------------------------
-• To grant a user cluster administrator privileges, assign the cluster-admin role to that user.• 
 
 
 
