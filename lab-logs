@@ -4548,6 +4548,208 @@ associations of a role to users and groups.
 • To grant a user cluster administrator privileges, assign the cluster-admin role to that user.
 
 ---------------------------------------------------------19Oct22-------------------------------------------------
+CH-11 - GE-Managing Sensitive Information with Secrets
+
+[student@workstation ~]$ lab authorization-secrets start
+
+Checking prerequisites for Guided Exercise: Managing Sensitive Information With Secrets
+
+ Verify the OpenShift cluster is running:
+ · Router pods are available...................................  SUCCESS
+ · OAuth pods are available....................................  SUCCESS
+ · API pods are available......................................  SUCCESS
+ · Control plane node 'master01' is ready......................  SUCCESS
+ · Control plane node 'master02' is ready......................  SUCCESS
+ · Control plane node 'master03' is ready......................  SUCCESS
+ Checking for conflicts with existing OpenShift projects:
+ · The 'authorization-secrets' project is absent...............  SUCCESS
+
+Setting up the classroom for Guided Exercise: Managing Sensitive Information With Secrets
+
+ · Create HTPasswd entry for 'admin'...........................  SUCCESS
+ · Create HTPasswd entry for 'leader'..........................  SUCCESS
+ · Create HTPasswd entry for 'developer'.......................  SUCCESS
+ · Create HTPasswd secret: 'localusers'........................  SUCCESS
+ · Add HTPasswd IdP............................................  SUCCESS
+ · Assigning the 'cluster-admin' role to the 'admin' user......  SUCCESS
+ · Pause for creation of first oauth pod.......................  SUCCESS
+ · Pause for creation of second oauth pod......................  SUCCESS
+ · Delete all previous users...................................  SUCCESS
+ · Delete all previous identities..............................  SUCCESS
+ · Pause 5 seconds before validating authentication............  SUCCESS
+ · Validate 'admin' can log in with password 'redhat'..........  SUCCESS
+ · Validate 'leader' can log in with password 'redhat'.........  SUCCESS
+ · Validate 'developer' can log in with password 'developer'...  SUCCESS
+
+Overall start status...........................................  SUCCESS
+
+[student@workstation ~]$ oc login -u developer -p developer https://api.ocp4.example.com:6443
+Login successful.
+
+You have one project on this server: "developer-deploy"
+
+Using project "developer-deploy".
+[student@workstation ~]$ oc new-project authorization-secrets
+Now using project "authorization-secrets" on server "https://api.ocp4.example.com:6443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app rails-postgresql-example
+
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=k8s.gcr.io/e2e-test-images/agnhost:2.33 -- /agnhost serve-hostname
+
+[student@workstation ~]$ oc create secret generic mysql --from-literal user=myuser --from-literal password=redhat123 --from-literal database=test_secrets --from-literal hostname=mysql
+secret/mysql created
+[student@workstation ~]$ oc get secret
+NAME                       TYPE                                  DATA   AGE
+builder-dockercfg-4nxrx    kubernetes.io/dockercfg               1      5m43s
+builder-token-7w6sn        kubernetes.io/service-account-token   4      5m43s
+builder-token-8ch4r        kubernetes.io/service-account-token   4      5m43s
+default-dockercfg-9fj2s    kubernetes.io/dockercfg               1      5m43s
+default-token-6m4cj        kubernetes.io/service-account-token   4      5m43s
+default-token-6ptwk        kubernetes.io/service-account-token   4      5m43s
+deployer-dockercfg-9tkcx   kubernetes.io/dockercfg               1      5m43s
+deployer-token-4xzcc       kubernetes.io/service-account-token   4      5m43s
+deployer-token-mvsgd       kubernetes.io/service-account-token   4      5m43s
+mysql                      Opaque                                4      10s
+[student@workstation ~]$ oc describe secret mysql
+Name:         mysql
+Namespace:    authorization-secrets
+Labels:       <none>
+Annotations:  <none>
+
+Type:  Opaque
+
+Data
+====
+user:      6 bytes
+database:  12 bytes
+hostname:  5 bytes
+password:  9 bytes
+[student@workstation ~]$ oc new-app --name mysql --image registry.redhat.io/rhel8/mysql-80:1
+--> Found container image b140346 (7 days old) from registry.redhat.io for "registry.redhat.io/rhel8/mysql-80:1"
+
+    MySQL 8.0 
+    --------- 
+    MySQL is a multi-user, multi-threaded SQL database server. The container image provides a containerized packaging of the MySQL mysqld daemon and client application. The mysqld server daemon accepts connections from clients and provides access to content from MySQL databases on behalf of the clients.
+
+    Tags: database, mysql, mysql80, mysql-80
+
+    * An image stream tag will be created as "mysql:1" that will track this image
+
+--> Creating resources ...
+    imagestream.image.openshift.io "mysql" created
+    deployment.apps "mysql" created
+    service "mysql" created
+--> Success
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose service/mysql' 
+    Run 'oc status' to view your app.
+[student@workstation ~]$ oc get pods -w
+NAME                     READY   STATUS             RESTARTS      AGE
+mysql-75c857cb77-fcqqt   0/1     CrashLoopBackOff   1 (12s ago)   28s
+mysql-75c857cb77-fcqqt   0/1     Error              2 (15s ago)   31s
+
+mysql-75c857cb77-fcqqt   0/1     CrashLoopBackOff   2 (11s ago)   42s
+^C[student@workstation ~]$ oc set env deployment/mysql --from secret/mysql --prefix MYSQL_
+deployment.apps/mysql updated
+[student@workstation ~]$ oc get pods -w
+NAME                     READY   STATUS    RESTARTS   AGE
+mysql-8566d5db48-6x8cf   1/1     Running   0          21s
+^C[student@workstation ~]$ oc set volume deployment/mysql --add --type secret --mount-path /run/secrets/mysql --secret-name mysql
+info: Generated volume name: volume-wpxgz
+deployment.apps/mysql volume updated
+[student@workstation ~]$ oc get pods -w
+NAME                     READY   STATUS    RESTARTS   AGE
+mysql-556846b745-t9dnl   1/1     Running   0          17s
+^C[student@workstation ~]$ oc rsh mysql-556846b745-t9dnl
+sh-4.4$ mysql -u myuser --password=redhat123 test_secrets -e 'show databases;'
+mysql: [Warning] Using a password on the command line interface can be insecure.
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| test_secrets       |
++--------------------+
+sh-4.4$ df -h | grep mysql
+tmpfs            15G   16K   15G   1% /run/secrets/mysql
+sh-4.4$ cd /run/secrets/mysql/
+sh-4.4$ ls
+database  hostname  password  user
+sh-4.4$ cat database 
+test_secretssh-4.4$ for FILE in $(ls /run/secrets/mysql); do  echo "${FILE}: $(cat /run/secrets/mysql/${FILE})" ; done
+database: test_secrets
+hostname: mysql
+password: redhat123
+user: myuser
+sh-4.4$ exit
+exit
+[student@workstation ~]$ oc new-app --name quotes --image quay.io/redhattraining/famous-quotes:2.1
+--> Found container image 7ff1a7b (2 years old) from quay.io for "quay.io/redhattraining/famous-quotes:2.1"
+
+    Quotes 2.1 
+    ---------- 
+    Famous Quotes is a PoC application for Go and MySQL
+
+    Tags: poc, mysql, golang
+
+    * An image stream tag will be created as "quotes:2.1" that will track this image
+
+--> Creating resources ...
+    imagestream.image.openshift.io "quotes" created
+    deployment.apps "quotes" created
+    service "quotes" created
+--> Success
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose service/quotes' 
+    Run 'oc status' to view your app.
+[student@workstation ~]$ oc get pods -l deployment=quotes -w
+NAME                      READY   STATUS              RESTARTS   AGE
+quotes-66b987df5d-c95c4   0/1     ContainerCreating   0          14s
+quotes-66b987df5d-c95c4   0/1     Error               0          19s
+quotes-66b987df5d-c95c4   0/1     Error               1 (2s ago)   20s
+quotes-66b987df5d-c95c4   0/1     CrashLoopBackOff    1 (14s ago)   33s
+quotes-66b987df5d-c95c4   0/1     Error               2 (15s ago)   34s
+quotes-66b987df5d-c95c4   0/1     CrashLoopBackOff    2 (12s ago)   46s
+quotes-66b987df5d-c95c4   0/1     Error               3 (27s ago)   61s
+quotes-66b987df5d-c95c4   0/1     CrashLoopBackOff    3 (15s ago)   76s
+quotes-66b987df5d-c95c4   0/1     Error               4 (42s ago)   103s
+quotes-66b987df5d-c95c4   0/1     CrashLoopBackOff    4 (13s ago)   116s
+[student@workstation ~]$ oc set env deployment/quotes --from secret/mysql --prefix QUOTES_
+deployment.apps/quotes updated
+[student@workstation ~]$ oc get pods -l deployment=quotes 
+NAME                      READY   STATUS    RESTARTS   AGE
+quotes-7776b797c5-mt87d   1/1     Running   0          12s
+[student@workstation ~]$ oc logs quotes-7776b797c5-mt87d | head -n2
+2022/10/20 16:48:04 Connecting to the database: myuser:redhat123@tcp(mysql:3306)/test_secrets
+2022/10/20 16:48:09 Database connection OK
+[student@workstation ~]$ oc expose service quotes --hostname quotes.apps.ocp4.example.com
+route.route.openshift.io/quotes exposed
+[student@workstation ~]$ oc get route quotes
+NAME     HOST/PORT                      PATH   SERVICES   PORT       TERMINATION   WILDCARD
+quotes   quotes.apps.ocp4.example.com          quotes     8000-tcp                 None
+[student@workstation ~]$ curl -s http://quotes.apps.ocp4.example.com/env | grep QUOTES_
+                <li>QUOTES_USER: myuser </li>
+                <li>QUOTES_PASSWORD: redhat123 </li>
+                <li>QUOTES_DATABASE: test_secrets</li>
+                <li>QUOTES_HOST: mysql</li>
+[student@workstation ~]$ curl -s http://quotes.apps.ocp4.example.com/status
+Database connection OK
+[student@workstation ~]$ curl -s http://quotes.apps.ocp4.example.com/random
+6: Hell, if I could explain it to the average person, it wouldn't have been worth the Nobel prize.
+- Richard Feynman
+[student@workstation ~]$ oc delete project authorization-secrets
+project.project.openshift.io "authorization-secrets" deleted
+[student@workstation ~]$ lab authorization-secrets finish
+
+Completing Guided Exercise: Managing Sensitive Information With Secrets
+
+
+Please use start if you wish to do the exercise again.
+
+[student@workstation ~]$ 
 
 
 
