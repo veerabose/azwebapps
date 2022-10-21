@@ -4955,41 +4955,7 @@ Please use start if you wish to do the exercise again.
 [student@workstation ~]$ 
 
 -------------------------------Lab-Ch11------------------
-
-[student@workstation ~]$ lab authorization-scc finish
-
-Completing Guided Exercise: Controlling Application Permissions with Security Context Constraints
-
-
-Please use start if you wish to do the exercise again.
-
-[student@workstation ~]$ lab authorization-review start
-
-Checking prerequisites for Lab: Configuring Application Security
-
- Verify the OpenShift cluster is running:
- · Router pods are available...................................  SUCCESS
- · OAuth pods are available....................................  SUCCESS
- · API pods are available......................................  SUCCESS
- · Control plane node 'master01' is ready......................  SUCCESS
- · Control plane node 'master02' is ready......................  SUCCESS
- · Control plane node 'master03' is ready......................  SUCCESS
- Checking for conflicts with existing OpenShift projects:
- · The 'authorization-review' project is absent................  FAIL
-
-Cannot continue due to the previous errors.....................  FAIL
-It looks like you have already started this exercise. To try this exercise again, run 'lab authorization-review finish' followed by 'lab authorization-review start'.
-
-[student@workstation ~]$ lab authorization-review finish
-
-Completing Lab: Configuring Application Security
-
- · Delete OpenShift project 'authorization-review'.............  SUCCESS
- · Wait for project 'authorization-review' to be gone..........  SUCCESS
-
-Please use start if you wish to do the exercise again.
-
-[student@workstation ~]$ 
+ 
 [student@workstation ~]$ lab authorization-review start
 
 Checking prerequisites for Lab: Configuring Application Security
