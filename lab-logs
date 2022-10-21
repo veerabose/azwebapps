@@ -4954,6 +4954,244 @@ Please use start if you wish to do the exercise again.
 
 [student@workstation ~]$ 
 
+-------------------------------Lab-Ch11------------------
+
+[student@workstation ~]$ lab authorization-scc finish
+
+Completing Guided Exercise: Controlling Application Permissions with Security Context Constraints
+
+
+Please use start if you wish to do the exercise again.
+
+[student@workstation ~]$ lab authorization-review start
+
+Checking prerequisites for Lab: Configuring Application Security
+
+ Verify the OpenShift cluster is running:
+ · Router pods are available...................................  SUCCESS
+ · OAuth pods are available....................................  SUCCESS
+ · API pods are available......................................  SUCCESS
+ · Control plane node 'master01' is ready......................  SUCCESS
+ · Control plane node 'master02' is ready......................  SUCCESS
+ · Control plane node 'master03' is ready......................  SUCCESS
+ Checking for conflicts with existing OpenShift projects:
+ · The 'authorization-review' project is absent................  FAIL
+
+Cannot continue due to the previous errors.....................  FAIL
+It looks like you have already started this exercise. To try this exercise again, run 'lab authorization-review finish' followed by 'lab authorization-review start'.
+
+[student@workstation ~]$ lab authorization-review finish
+
+Completing Lab: Configuring Application Security
+
+ · Delete OpenShift project 'authorization-review'.............  SUCCESS
+ · Wait for project 'authorization-review' to be gone..........  SUCCESS
+
+Please use start if you wish to do the exercise again.
+
+[student@workstation ~]$ 
+[student@workstation ~]$ lab authorization-review start
+
+Checking prerequisites for Lab: Configuring Application Security
+
+ Verify the OpenShift cluster is running:
+ · Router pods are available...................................  SUCCESS
+ · OAuth pods are available....................................  SUCCESS
+ · API pods are available......................................  SUCCESS
+ · Control plane node 'master01' is ready......................  SUCCESS
+ · Control plane node 'master02' is ready......................  SUCCESS
+ · Control plane node 'master03' is ready......................  SUCCESS
+ Checking for conflicts with existing OpenShift projects:
+ · The 'authorization-review' project is absent................  SUCCESS
+
+Setting up the classroom for Lab: Configuring Application Security
+
+ · Validate 'admin' can log in with password 'redhat'..........  SUCCESS
+ · Validate 'leader' can log in with password 'redhat'.........  SUCCESS
+ · Validate 'developer' can log in with password 'developer'...  SUCCESS
+
+Overall start status...........................................  SUCCESS
+
+
+[student@workstation ~]$ oc login -u developer -p developer https://api.ocp4.example.com:6443
+Login successful.
+
+You have one project on this server: "developer-deploy"
+
+Using project "developer-deploy".
+[student@workstation ~]$ oc new-project authorization-review
+Now using project "authorization-review" on server "https://api.ocp4.example.com:6443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app rails-postgresql-example
+
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=k8s.gcr.io/e2e-test-images/agnhost:2.33 -- /agnhost serve-hostname
+
+[student@workstation ~]$
+[student@workstation ~]$ oc new-app --name mysql --image registry.redhat.io/rhel8/mysql-80:1
+--> Found container image b140346 (8 days old) from registry.redhat.io for "registry.redhat.io/rhel8/mysql-80:1"
+
+    MySQL 8.0 
+    --------- 
+    MySQL is a multi-user, multi-threaded SQL database server. The container image provides a containerized packaging of the MySQL mysqld daemon and client application. The mysqld server daemon accepts connections from clients and provides access to content from MySQL databases on behalf of the clients.
+
+    Tags: database, mysql, mysql80, mysql-80
+
+    * An image stream tag will be created as "mysql:1" that will track this image
+
+--> Creating resources ...
+    imagestream.image.openshift.io "mysql" created
+    deployment.apps "mysql" created
+    service "mysql" created
+--> Success
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose service/mysql' 
+    Run 'oc status' to view your app.
+[student@workstation ~]$ oc status
+In project authorization-review on server https://api.ocp4.example.com:6443
+
+svc/mysql - 172.30.179.224:3306
+  deployment/mysql deploys istag/mysql:1 
+    deployment #2 running for 8 seconds - 0/1 pods (warning: 1 restarts)
+    deployment #1 deployed 9 seconds ago - 0/1 pods growing to 1
+
+Errors:
+  * pod/mysql-75c857cb77-m8jmk is crash-looping
+
+1 error, 1 info identified, use 'oc status --suggest' to see details.
+
+[student@workstation ~]$ oc create secret generic review-secret --from-literal user=wpuser --from-literal password=redhat123 --from-literal database=wordpress
+secret/review-secret created
+[student@workstation ~]$ oc set env deployment/mysql --prefix MYSQL_ --from secret/review-secret
+deployment.apps/mysql updated
+[student@workstation ~]$ oc status
+In project authorization-review on server https://api.ocp4.example.com:6443
+
+svc/mysql - 172.30.179.224:3306
+  deployment/mysql deploys istag/mysql:1 
+    deployment #3 running for 3 seconds - 1 pod
+    deployment #2 deployed 34 seconds ago
+    deployment #1 deployed 35 seconds ago
+
+
+1 info identified, use 'oc status --suggest' to see details.
+[student@workstation ~]$ oc get pods
+NAME                    READY   STATUS    RESTARTS   AGE
+mysql-6f5b588f8-cgvng   1/1     Running   0          9s
+[student@workstation ~]$ oc new-app --name wordpress --image quay.io/redhattraining/wordpress:5.7-php7.4-apache -e WORDPRESS_DB_HOST=mysql -e WORDPRESS_DB_NAME=wordpress -e WORDPRESS_TITLE=auth-review -e WORDPRESS_USER=wpuser -e WORDPRESS_PASSWORD=redhat123 -e WORDPRESS_EMAIL=student@redhat.com -e WORDPRESS_URL=wordpress-review.apps.ocp4.example.com
+--> Found container image 4d3c70b (15 months old) from quay.io for "quay.io/redhattraining/wordpress:5.7-php7.4-apache"
+
+    * An image stream tag will be created as "wordpress:5.7-php7.4-apache" that will track this image
+
+--> Creating resources ...
+    imagestream.image.openshift.io "wordpress" created
+    deployment.apps "wordpress" created
+    service "wordpress" created
+--> Success
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose service/wordpress' 
+    Run 'oc status' to view your app.
+[student@workstation ~]$ oc set env deployment/wordpress --prefix WORDPRESS_DB_ --from secret/review-secret
+deployment.apps/wordpress updated
+[student@workstation ~]$ oc status
+In project authorization-review on server https://api.ocp4.example.com:6443
+
+svc/mysql - 172.30.179.224:3306
+  deployment/mysql deploys istag/mysql:1 
+    deployment #3 running for 4 minutes - 1 pod
+    deployment #2 deployed 5 minutes ago
+    deployment #1 deployed 5 minutes ago
+
+svc/wordpress - 172.30.226.26:80
+  deployment/wordpress deploys istag/wordpress:5.7-php7.4-apache 
+    deployment #3 running for 4 seconds - 1 pod
+    deployment #2 deployed 36 seconds ago
+    deployment #1 deployed 37 seconds ago
+
+
+2 infos identified, use 'oc status --suggest' to see details.
+[student@workstation ~]$ watch oc get pods -l deployment=wordpress
+[student@workstation ~]$  oc get pods -l deployment=wordpress
+NAME                         READY   STATUS             RESTARTS      AGE
+wordpress-684c9d4ffc-c7d85   0/1     CrashLoopBackOff   3 (30s ago)   82s
+[student@workstation ~]$ oc logs wordpress-684c9d4ffc-c7d85
+apache2-foreground
+Checking if WordPress is installed
+WordPress is already installed
+AH00558: apache2: Could not reliably determine the server's fully qualified domain name, using 10.8.0.44. Set the 'ServerName' directive globally to suppress this message
+(13)Permission denied: AH00072: make_sock: could not bind to address [::]:80
+(13)Permission denied: AH00072: make_sock: could not bind to address 0.0.0.0:80
+no listening sockets available, shutting down
+AH00015: Unable to open logs
+[student@workstation ~]$ oc login -u admin -p redhat
+Login successful.
+
+You have access to 69 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "authorization-review".
+[student@workstation ~]$ oc get pod/wordpress-684c9d4ffc-c7d85 -o yaml | oc adm policy scc-subject-review -f -
+RESOURCE                         ALLOWED BY   
+Pod/wordpress-684c9d4ffc-c7d85   anyuid       
+[student@workstation ~]$ oc create serviceaccount wordpress-sa
+serviceaccount/wordpress-sa created
+[student@workstation ~]$ oc adm policy add-scc-to-user anyuid -z wordpress-sa
+clusterrole.rbac.authorization.k8s.io/system:openshift:scc:anyuid added: "wordpress-sa"
+[student@workstation ~]$ oc set serviceaccount deployment/wordpress wordpress-sa
+deployment.apps/wordpress serviceaccount updated
+[student@workstation ~]$ oc get pods -l deployment=wordpress
+NAME                        READY   STATUS    RESTARTS   AGE
+wordpress-bf74d8fcc-qnf5h   1/1     Running   0          19s
+[student@workstation ~]$ oc expose service/wordpress --hostname wordpress-review.apps.ocp4.example.com
+route.route.openshift.io/wordpress exposed
+[student@workstation ~]$ curl -s http://wordpress-review.apps.ocp4.example.com/wp-admin/install.php | grep Installation
+	<title>WordPress &rsaquo; Installation</title>
+[student@workstation ~]$ lab authorization-review grade
+
+Grading the student's work for Lab: Configuring Application Security
+
+ Verifying the information collected about the cluster:
+ · The 'authorization-review' project exists...................  PASS
+ · The 'review-secret' secret exists...........................  PASS
+ · The 'mysql' application exists..............................  PASS
+ · The 'MYSQL_USER' environment variable is set from the 'revie
+   w-secret' secret............................................  PASS
+ · The 'MYSQL_PASSWORD' environment variable is set from the 'r
+   eview-secret' secret........................................  PASS
+ · The 'MYSQL_DATABASE' environment variable is set from the 'r
+   eview-secret' secret........................................  PASS
+ · The 'wordpress' application exists..........................  PASS
+ · The 'WORDPRESS_DB_USER' environment variable is set from the
+   'review-secret' secret......................................  PASS
+ · The 'WORDPRESS_DB_PASSWORD' environment variable is set from
+   the 'review-secret' secret..................................  PASS
+ · The 'WORDPRESS_DB_DATABASE' environment variable is set from
+   the 'review-secret' secret..................................  PASS
+ · The 'wordpress-sa' service account exists...................  PASS
+ · The 'wordpress-sa' service account uses the 'anyuid' SCC....  PASS
+ · The 'wordpress' application uses the 'wordpress-sa' service 
+   account.....................................................  PASS
+ · The 'wordpress' application uses the 'anyuid' SCC...........  PASS
+ · The 'wordpress' deployment is exposed at 'wordpress-review.a
+   pps.ocp4.example.com'.......................................  PASS
+ · The 'wordpress-review.apps.ocp4.example.com' URL responds to
+   external requests...........................................  PASS
+
+Overall exercise grade.........................................  PASS
+
+[student@workstation ~]$ lab authorization-review finish
+
+Completing Lab: Configuring Application Security
+
+ · Delete OpenShift project 'authorization-review'.............  SUCCESS
+ · Wait for project 'authorization-review' to be gone..........  SUCCESS
+ · Removing the 'anyuid' SCC cluster role binding..............  SUCCESS
+
+Please use start if you wish to do the exercise again.
+
+[student@workstation ~]$ 
 
 
 
