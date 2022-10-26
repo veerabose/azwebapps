@@ -5169,5 +5169,378 @@ system resources. By default, pods operate under the restricted context which li
 to node resources.
 
 -----------------------------------------------26Oct22-----------------------------------------------------
+[student@workstation ~]$ lab network-sdn start
+
+Checking prerequisites for Guided Exercise: Troubleshooting OpenShift Software-Defined Networking
+
+ Verify the OpenShift cluster is running:
+ · Router pods are available...................................  SUCCESS
+ · OAuth pods are available....................................  SUCCESS
+ · API pods are available......................................  SUCCESS
+ · Control plane node 'master01' is ready......................  SUCCESS
+ · Control plane node 'master02' is ready......................  SUCCESS
+ · Control plane node 'master03' is ready......................  SUCCESS
+ Checking for conflicts with existing OpenShift projects:
+ · The 'network-sdn' project is absent.........................  SUCCESS
+
+Setting up the classroom for Guided Exercise: Troubleshooting OpenShift Software-Defined Networking
+
+ · Validate 'admin' can log in with password 'redhat'..........  SUCCESS
+ · Update HTPasswd entry for 'leader'..........................  SUCCESS
+ · Validate 'developer' can log in with password 'developer'...  SUCCESS
+ · Updating htpasswd data in secret 'htpasswd-secret'..........  SUCCESS
+ · Pause for creation of first oauth pod.......................  SUCCESS
+ · Wait up to 1 minute for 'pod/oauth-openshift-58d4f6bb88-fwww
+   k'..........................................................  SUCCESS
+ · Wait up to 1 minute for oauth pod containers to be ready....  SUCCESS
+ · Pause for creation of second oauth pod......................  SUCCESS
+ · Wait up to 1 minute for 'pod/oauth-openshift-58d4f6bb88-w7nb
+   h'..........................................................  SUCCESS
+ · Wait up to 1 minute for oauth pod containers to be ready....  SUCCESS
+ · Delete all previous users...................................  SUCCESS
+ · Delete all previous identities..............................  SUCCESS
+ · Pause 5 seconds before validating authentication............  SUCCESS
+ · Validate 'admin' can log in with password 'redhat'..........  SUCCESS
+ · Validate 'leader' can log in with password 'redhat'.........  SUCCESS
+ · Validate 'developer' can log in with password 'developer'...  SUCCESS
+ Preparing the student's workstation:
+ · Download exercise files.....................................  SUCCESS
+ · Download solution files.....................................  SUCCESS
+
+Overall start status...........................................  SUCCESS
+
+[student@workstation ~]$ oc login -u developer -p developer https://api.ocp4.example.com:6443
+Login successful.
+
+You don't have any projects. You can try to create a new project, by running
+
+    oc new-project <projectname>
+
+Welcome! See 'oc help' to get started.
+[student@workstation ~]$ oc new-project network-sdn
+Now using project "network-sdn" on server "https://api.ocp4.example.com:6443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app rails-postgresql-example
+
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=k8s.gcr.io/e2e-test-images/agnhost:2.33 -- /agnhost serve-hostname
+
+[student@workstation ~]$ cd ~/DO280/labs/network-sdn
+[student@workstation network-sdn]$ oc create -f todo-db.yaml
+deployment.apps/mysql created
+service/mysql created
+[student@workstation network-sdn]$ oc status
+In project network-sdn on server https://api.ocp4.example.com:6443
+
+svc/mysql - 172.30.208.61:3306
+  deployment/mysql deploys registry.redhat.io/rhel8/mysql-80:1
+    deployment #1 running for 17 seconds - 0/1 pods
+
+
+1 info identified, use 'oc status --suggest' to see details.
+[student@workstation network-sdn]$ oc get all
+NAME                         READY   STATUS    RESTARTS   AGE
+pod/mysql-68b778f957-slhr8   1/1     Running   0          30s
+
+NAME            TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+service/mysql   ClusterIP   172.30.208.61   <none>        3306/TCP   30s
+
+NAME                    READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/mysql   1/1     1            1           30s
+
+NAME                               DESIRED   CURRENT   READY   AGE
+replicaset.apps/mysql-68b778f957   1         1         1       30s
+[student@workstation network-sdn]$ oct get pods
+bash: oct: command not found...
+[student@workstation network-sdn]$ oc get pods
+NAME                     READY   STATUS    RESTARTS   AGE
+mysql-68b778f957-slhr8   1/1     Running   0          66s
+[student@workstation network-sdn]$ ls
+db-data.sql  todo-db.yaml  todo-frontend.yaml
+[student@workstation network-sdn]$ oc cp db-data.sql mysql-68b778f957-slhr8:/tmp/
+[student@workstation network-sdn]$ oc rsh mysql-68b778f957-slhr8 /bin/bash
+bash-4.4$ mysql -u root items < /tmp/db-data.sql
+bash-4.4$ mysql -u root items -e "SHOW TABLES;"
++-----------------+
+| Tables_in_items |
++-----------------+
+| Item            |
++-----------------+
+bash-4.4$ exit
+exit
+[student@workstation network-sdn]$ oc create -f todo-frontend.yaml
+deployment.apps/frontend created
+service/frontend created
+[student@workstation network-sdn]$ oc get pods
+NAME                        READY   STATUS              RESTARTS   AGE
+frontend-85d58fb74c-q6ctw   0/1     ContainerCreating   0          9s
+mysql-68b778f957-slhr8      1/1     Running             0          6m26s
+[student@workstation network-sdn]$ oc expose service frontend --hostname todo.apps.ocp4.example.com
+route.route.openshift.io/frontend exposed
+[student@workstation network-sdn]$ oc get routes
+NAME       HOST/PORT                    PATH   SERVICES   PORT   TERMINATION   WILDCARD
+frontend   todo.apps.ocp4.example.com          frontend   8080                 None
+[student@workstation network-sdn]$ oc logs frontend-85d58fb74c-q6ctw
+App is ready at : 8080
+[student@workstation network-sdn]$ oc get svc
+NAME       TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+frontend   ClusterIP   172.30.200.47   <none>        8080/TCP   3m40s
+mysql      ClusterIP   172.30.208.61   <none>        3306/TCP   9m57s
+[student@workstation network-sdn]$ oc debug -t deployment/frontend
+Starting pod/frontend-debug ...
+Pod IP: 10.9.0.25
+If you don't see a command prompt, try pressing enter.
+sh-4.2$ curl -v telnet://172.30.208.61:3306
+* About to connect() to 172.30.208.61 port 3306 (#0)
+*   Trying 172.30.208.61...
+* Connected to 172.30.208.61 (172.30.208.61) port 3306 (#0)
+J
+8.0.30
+* RCVD IAC 2
+* RCVD IAC 223
+
+* RCVD IAC 135
+^C
+sh-4.2$ exit
+exit
+
+Removing debug pod ...
+[student@workstation network-sdn]$ oc debug -t deployment/mysql --image registry.access.redhat.com/ubi8/ubi:8.4
+Starting pod/mysql-debug ...
+Pod IP: 10.8.0.45
+If you don't see a command prompt, try pressing enter.
+sh-4.4$ 
+sh-4.4$ curl -m 10 -v http://172.30.200.47:8080
+* Rebuilt URL to: http://172.30.200.47:8080/
+*   Trying 172.30.200.47...
+* TCP_NODELAY set
+* Connection timed out after 10000 milliseconds
+* Closing connection 0
+curl: (28) Connection timed out after 10000 milliseconds
+sh-4.4$ exit
+exit
+
+Removing debug pod ...
+[student@workstation network-sdn]$ oc get pods -o wide -l name=frontend
+NAME                        READY   STATUS    RESTARTS   AGE     IP          NODE       NOMINATED NODE   READINESS GATES
+frontend-85d58fb74c-q6ctw   1/1     Running   0          8m41s   10.9.0.24   master01   <none>           <none>
+[student@workstation network-sdn]$ oc debug -t deployment/mysql --image registry.access.redhat.com/ubi8/ubi:8.4
+Starting pod/mysql-debug ...
+Pod IP: 10.8.0.46
+If you don't see a command prompt, try pressing enter.
+sh-4.4$ curl -v http://10.9.0.24:8080/todo/
+*   Trying 10.9.0.24...
+* TCP_NODELAY set
+* Connected to 10.9.0.24 (10.9.0.24) port 8080 (#0)
+> GET /todo/ HTTP/1.1
+> Host: 10.9.0.24:8080
+> User-Agent: curl/7.61.1
+> Accept: */*
+> 
+< HTTP/1.1 200 OK
+< Server: restify
+< Cache-Control: public, max-age=3600
+< Content-Length: 4508
+< Content-Type: text/html
+< Last-Modified: Thu, 05 Dec 2019 22:50:51 GMT
+< Connection: Keep-Alive
+< Date: Wed, 26 Oct 2022 17:38:31 GMT
+< Request-Id: 298c2003-66fd-42ab-8089-d7e8e24f4136
+< Response-Time: 10
+< 
+<!DOCTYPE html>
+
+<html ng-app="items">
+<head>
+    <title>To Do List</title>
+
+    <link rel="stylesheet" href="lib/dependencies/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="lib/dependencies/css/ng-grid.min.css" />
+
+    <!-- build:css css/application.css -->
+    <link rel="stylesheet" type="text/css" href="css/style.css"/>
+    <!-- endbuild -->
+
+    <script src="lib/dependencies/jquery.min.js"></script>
+    <script src="lib/dependencies/angular.min.js"></script>
+    <script src="lib/dependencies/angular-resource.min.js"></script>
+    <script src="lib/dependencies/ng-grid-2.0.11.min.js"></script>
+    <script src="lib/dependencies/ui-bootstrap-tpls.min.js"></script>
+
+    <!-- build:js script/all.js -->
+    <script src="script/item.js"></script>
+    <!-- endbuild -->
+</head>
+
+<body>
+
+<h1>To Do List Application</h1>
+
+<br/>
+
+<!-- Specify a Angular controller script that binds Javascript variables to the feedback messages.-->
+<div class="message" ng-controller="alertMessagesController">
+    <alert ng-repeat="alert in alerts" type="{{alert.type}}" close="closeAlert($index)">{{alert.msg}}</alert>
+</div>
+
+<br>
+
+<!-- Specify a Angular controller script that binds Javascript variables to the grid.-->
+<div class="grid" ng-controller="itemsListController">
+    <div>
+        <h3>To Do List</h3>
+    </div>
+
+    <!-- Binds the grid component to be displayed. -->
+    <div class="gridStyle" ng-grid="gridOptions"></div>
+
+    <!--  Bind the pagination component to be displayed. -->
+    <pagination direction-links="true" boundary-links="true"
+                total-items="items.totalResults" items-per-page="items.pageSize"
+                ng-model="items.currentPage" ng-change="refreshGrid()">
+    </pagination>
+</div>
+
+<!-- Specify a Angular controller script that binds Javascript variables to the form.-->
+<div class="form" ng-controller="itemsFormController">
+    <!-- Verify item, if there is no id present, that we are Adding a Item -->
+    <div ng-if="item.id == null">
+        <h3>Add Task</h3>
+    </div>
+    <!-- Otherwise it's an Edit -->
+    <div ng-if="item.id != null">
+        <h3>Edit Task</h3>
+    </div>
+
+    <div>
+        <!-- Specify the function to be called on submit and disable HTML5 validation, since we're using Angular validation-->
+        <form name="itemForm" ng-submit="updateItem()" novalidate>
+
+            <!-- Display an error if the input is invalid and is dirty (only when someone changes the value) -->
+            <div class="form-group" ng-class="{'has-error' : itemForm.description.$invalid && itemForm.description.$dirty}">
+                <label for="description">Description:</label>
+                <!-- Display a check when the field is valid and was modified -->
+                <span ng-class="{'glyphicon glyphicon-ok' : itemForm.description.$valid && itemForm.description.$dirty}"></span>
+
+                <input id="description" name="description" type="text" class="form-control" maxlength="100"
+                       ng-model="item.description"
+                       required ng-minlength="5" ng-maxlength="100"/>
+
+                <!-- Validation messages to be displayed on required, minlength and maxlength -->
+                <p class="help-block" ng-show="itemForm.description.$error.required">Add Description.</p>
+                <p class="help-block" ng-show="itemForm.description.$error.minlength">Description must be at least 5 characters long.</p>
+                <p class="help-block" ng-show="itemForm.description.$error.maxlength">Description cannot be longer than 100 characters.</p>
+            </div>
+
+            <div class="form-group" ng-class="{'has-error' : itemForm.done.$invalid && itemForm.done.$dirty}">
+                <label for="done">Completed:</label>
+                <!-- Display a check when the field is valid and was modified -->
+                <span ng-class="{'glyphicon glyphicon-ok' : itemForm.done.$valid && itemForm.done.$dirty}"></span>
+
+                <input id="done" name="done" type="checkbox" class="form-control"
+                       ng-model="item.done" />
+
+            </div>
+
+            <!-- Form buttons. The 'Save' button is only enabled when the form is valid. -->
+            <div class="buttons">
+                <button type="button" class="btn btn-primary" ng-click="clearForm()">Clear</button>
+                <button type="submit" class="btn btn-primary" ng-disabled="itemForm.$invalid">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>
+* Connection #0 to host 10.9.0.24 left intact
+sh-4.4$ exit
+exit
+
+Removing debug pod ...
+[student@workstation network-sdn]$ oc get svc
+NAME       TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+frontend   ClusterIP   172.30.200.47   <none>        8080/TCP   12m
+mysql      ClusterIP   172.30.208.61   <none>        3306/TCP   19m
+[student@workstation network-sdn]$ oc describe svc frontend
+Name:              frontend
+Namespace:         network-sdn
+Labels:            app=todonodejs
+                   name=frontend
+Annotations:       <none>
+Selector:          name=api
+Type:              ClusterIP
+IP Family Policy:  SingleStack
+IP Families:       IPv4
+IP:                172.30.200.47
+IPs:               172.30.200.47
+Port:              <unset>  8080/TCP
+TargetPort:        8080/TCP
+Endpoints:         <none>
+Session Affinity:  None
+Events:            <none>
+[student@workstation network-sdn]$ oc describe svc mysql
+Name:              mysql
+Namespace:         network-sdn
+Labels:            app=todonodejs
+                   name=mysql
+Annotations:       <none>
+Selector:          name=mysql
+Type:              ClusterIP
+IP Family Policy:  SingleStack
+IP Families:       IPv4
+IP:                172.30.208.61
+IPs:               172.30.208.61
+Port:              <unset>  3306/TCP
+TargetPort:        3306/TCP
+Endpoints:         10.9.0.23:3306
+Session Affinity:  None
+Events:            <none>
+[student@workstation network-sdn]$ oc get pod -o wide
+NAME                        READY   STATUS    RESTARTS   AGE   IP          NODE       NOMINATED NODE   READINESS GATES
+frontend-85d58fb74c-q6ctw   1/1     Running   0          13m   10.9.0.24   master01   <none>           <none>
+mysql-68b778f957-slhr8      1/1     Running   0          20m   10.9.0.23   master01   <none>           <none>
+[student@workstation network-sdn]$ oc describe deployment/frontend | grep -A1 Labels
+Labels:                 app=todonodejs
+                        name=frontend
+--
+  Labels:  app=todonodejs
+           name=frontend
+[student@workstation network-sdn]$ oc edit svc/frontend
+service/frontend edited
+[student@workstation network-sdn]$ oc describe svc/frontend
+Name:              frontend
+Namespace:         network-sdn
+Labels:            app=todonodejs
+                   name=frontend
+Annotations:       <none>
+Selector:          name=frontend
+Type:              ClusterIP
+IP Family Policy:  SingleStack
+IP Families:       IPv4
+IP:                172.30.200.47
+IPs:               172.30.200.47
+Port:              <unset>  8080/TCP
+TargetPort:        8080/TCP
+Endpoints:         10.9.0.24:8080
+Session Affinity:  None
+Events:            <none>
+[student@workstation network-sdn]$ cd
+[student@workstation ~]$ oc delete project network-sdn
+project.project.openshift.io "network-sdn" deleted
+[student@workstation ~]$ lab network-sdn finish
+
+Completing Guided Exercise: Troubleshooting OpenShift Software-Defined Networking
+
+ · Remove exercise files.......................................  SUCCESS
+ · Remove solution files.......................................  SUCCESS
+
+Please use start if you wish to do the exercise again.
+
+[student@workstation ~]$ 
+-------------------------------------------------------------27oct2022------------------------------------------
 
 
