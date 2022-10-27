@@ -5543,4 +5543,389 @@ Please use start if you wish to do the exercise again.
 [student@workstation ~]$ 
 -------------------------------------------------------------27oct2022------------------------------------------
 
+[student@workstation ~]$ lab network-ingress start
+
+Checking prerequisites for Guided Exercise: Controlling Cluster Network Ingress
+
+ Verify the OpenShift cluster is running:
+ · Router pods are available...................................  SUCCESS
+ · OAuth pods are available....................................  SUCCESS
+ · API pods are available......................................  SUCCESS
+ · Control plane node 'master01' is ready......................  SUCCESS
+ · Control plane node 'master02' is ready......................  SUCCESS
+ · Control plane node 'master03' is ready......................  SUCCESS
+ Checking for conflicts with existing OpenShift projects:
+ · The 'network-ingress' project is absent.....................  SUCCESS
+
+Setting up the classroom for Guided Exercise: Controlling Cluster Network Ingress
+
+ · Validate 'admin' can log in with password 'redhat'..........  SUCCESS
+ · Validate 'leader' can log in with password 'redhat'.........  SUCCESS
+ · Validate 'developer' can log in with password 'developer'...  SUCCESS
+ Preparing Workstation:
+ · Download exercise files.....................................  SUCCESS
+ Configuring Certificates:
+ · Generating unique CA key password...........................  SUCCESS
+ · Setting environment variable in cert. configuration file....  SUCCESS
+ · Generating the CA key.......................................  SUCCESS
+ · Generating CA certificate...................................  SUCCESS
+ · Updating privileges on certs directory......................  SUCCESS
+
+Overall start status...........................................  SUCCESS
+
+[student@workstation ~]$ oc login -u developer -p developer https://api.ocp4.example.com:6443
+Login successful.
+
+You don't have any projects. You can try to create a new project, by running
+
+    oc new-project <projectname>
+
+[student@workstation ~]$ oc new-project network-ingress
+Now using project "network-ingress" on server "https://api.ocp4.example.com:6443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app rails-postgresql-example
+
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=k8s.gcr.io/e2e-test-images/agnhost:2.33 -- /agnhost serve-hostname
+
+[student@workstation ~]$ oc create -f ~/DO280/labs/network-ingress/todo-app-v1.yaml
+deployment.apps/todo-http created
+service/todo-http created
+[student@workstation ~]$ cat !$
+cat ~/DO280/labs/network-ingress/todo-app-v1.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-http
+  labels:
+    app: todo-http
+    name: todo-http
+  namespace: network-ingress
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: todo-http
+      name: todo-http
+  template:
+    metadata:
+      labels:
+        app: todo-http
+        name: todo-http
+    spec:
+      containers:
+      - resources:
+          limits:
+            cpu: '0.5'
+        image: quay.io/redhattraining/todo-angular:v1.1
+        name: todo-http
+        ports:
+        - containerPort: 8080
+          name: todo-http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: todo-http
+    name: todo-http
+  name: todo-http
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    name: todo-http[student@workstation ~]$ oc status
+In project network-ingress on server https://api.ocp4.example.com:6443
+
+svc/todo-http - 172.30.150.207:80 -> 8080
+  deployment/todo-http deploys quay.io/redhattraining/todo-angular:v1.1
+    deployment #1 running for 37 seconds - 1 pod
+
+
+1 info identified, use 'oc status --suggest' to see details.
+[student@workstation ~]$ oc expose svc todo-http --hostname todo-http.apps.ocp4.example.com
+route.route.openshift.io/todo-http exposed
+[student@workstation ~]$ oct get routes
+bash: oct: command not found...
+[student@workstation ~]$ oc get routes
+NAME        HOST/PORT                         PATH   SERVICES    PORT   TERMINATION   WILDCARD
+todo-http   todo-http.apps.ocp4.example.com          todo-http   8080                 None
+[student@workstation ~]$ cd ~/DO280/labs/network-ingressoc create route edge todo-https --service todo-http --hostname todo-https.apps.ocp4.example.com
+bash: cd: too many arguments
+[student@workstation ~]$ cd ~/DO280/labs/network-ingress
+[student@workstation network-ingress]$ oc create route edge todo-https --service todo-http --hostname todo-https.apps.ocp4.example.com
+route.route.openshift.io/todo-https created
+[student@workstation network-ingress]$ oc get svc todo-http -o jsonpath="{.spec.clusterIP}{'\n'}"
+172.30.150.207
+[student@workstation network-ingress]$ oc debug -t deployment/todo-http --image registry.access.redhat.com/ubi8/ubi:8.4
+Starting pod/todo-http-debug ...
+
+Pod IP: 10.8.0.35
+If you don't see a command prompt, try pressing enter.
+sh-4.4$ 
+sh-4.4$ curl -v 172.30.102.29
+* Rebuilt URL to: 172.30.102.29/
+*   Trying 172.30.102.29...
+* TCP_NODELAY set
+* connect to 172.30.102.29 port 80 failed: No route to host
+* Failed to connect to 172.30.102.29 port 80: No route to host
+* Closing connection 0
+curl: (7) Failed to connect to 172.30.102.29 port 80: No route to host
+sh-4.4$ curl -v 172.30.150.207
+* Rebuilt URL to: 172.30.150.207/
+*   Trying 172.30.150.207...
+* TCP_NODELAY set
+* Connected to 172.30.150.207 (172.30.150.207) port 80 (#0)
+> GET / HTTP/1.1
+> Host: 172.30.150.207
+> User-Agent: curl/7.61.1
+> Accept: */*
+> 
+< HTTP/1.1 200 OK
+< Server: nginx/1.14.1
+< Date: Thu, 27 Oct 2022 14:23:38 GMT
+< Content-Type: text/html
+< Transfer-Encoding: chunked
+< Connection: keep-alive
+< 
+<!DOCTYPE html>
+<html lang="en" ng-app="todoItemsApp" ng-controller="appCtl">
+<head>
+    <meta charset="utf-8">
+    <title>ToDo app</title>
+
+    <link rel="stylesheet" href="assets/css/libs/bootstrap/bootstrap.css">
+    <link rel="stylesheet" href="assets/css/libs/angular-motion/angular-motion.css">
+    <link rel="stylesheet" href="assets/css/libs/angular-xeditable/xeditable.css">
+
+    <link rel="stylesheet" href="assets/css/app.css">
+
+    <script type="text/javascript" src="assets/js/libs/jquery/jquery-1.11.1.min.js"></script>
+    <script type="text/javascript" src="assets/js/libs/bootstrap/bootstrap.min.js"></script>
+    <script type="text/javascript" src="assets/js/libs/angular/angular.min.js"></script>
+
+    <script type="text/javascript" src="assets/js/libs/angular/angular-route.min.js"></script>
+    <script type="text/javascript" src="assets/js/libs/angular/angular-animate.min.js"></script>
+
+    <script type="text/javascript" src="assets/js/libs/angular-ui-router/angular-ui-router.js"></script>
+
+    <script type="text/javascript" src="assets/js/libs/angular-strap/angular-strap.js"></script>
+    <script type="text/javascript" src="assets/js/libs/angular-strap/angular-strap.tpl.js"></script>
+    <script type="text/javascript" src="assets/js/libs/angular-xeditable/xeditable.js"></script>
+
+    <script type="text/javascript" src="assets/js/libs/angular/angular-sanitize.js"></script>
+    <script type="text/javascript" src="assets/js/app/utils/md5.js"></script>
+
+    <script type="text/javascript" src="assets/js/app/module.js"></script>
+    <script type="text/javascript" src="assets/js/app/states/states.js"></script>
+
+    <script type="text/javascript" src="assets/js/app/domain/todoitems.js"></script>
+    <script type="text/javascript" src="assets/js/app/ui/filters.js"></script>
+
+    <script type="text/javascript" src="assets/js/app/ui/focus.js"></script>
+    <script type="text/javascript" src="assets/js/app/ui/gravatar.js"></script>
+    <script type="text/javascript" src="assets/js/app/ui/editable.js"></script>
+</head>
+<body>
+
+<nav class="navbar navbar-default" role="navigation">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#nav-toggle">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="/">ToDo App</a>
+    </div>
+    <div class="collapse navbar-collapse" id="nav-toggle">
+        <ul class="nav navbar-nav">
+            <li ui-sref-active="active"><a ui-sref="list">Browse</a></li>
+            <li ui-sref-active="active"><a ui-sref="create">Create</a></li>
+        </ul>
+        <form class="navbar-form navbar-right" role="search">
+            <input type="text" class="form-control" placeholder="Search" ng-model="search.description" ng-keyup="startSearch()">
+        </form>
+    </div>
+
+</nav>
+<div class="container">
+    <div ui-view></div>
+</div>
+
+</body>
+* Connection #0 to host 172.30.150.207 left intact
+</html>sh-4.4$ exit
+exit
+
+Removing debug pod ...
+[student@workstation network-ingress]$ oc delete route todo-https
+route.route.openshift.io "todo-https" deleted
+[student@workstation network-ingress]$ cd certs
+[student@workstation certs]$ ls -l
+total 20
+-rw-rw-r--. 1 student student  566 Aug  8 14:21 openssl-commands.txt
+-rw-rw-r--. 1 student student   33 Oct 27 10:08 passphrase.txt
+-rw-------. 1 student student 1751 Oct 27 10:08 training-CA.key
+-rw-r--r--. 1 student student 1334 Oct 27 10:08 training-CA.pem
+-rw-r--r--. 1 student student  352 Oct 27 10:08 training.ext
+[student@workstation certs]$ cat openssl-commands.txt 
+## Run the following command to create the private key
+
+openssl genrsa -out training.key 4096
+
+## Run the following command to generate a certificate signing request
+
+openssl req -new \
+  -subj "/C=US/ST=North Carolina/L=Raleigh/O=Red Hat/CN=todo-https.apps.ocp4.example.com" \
+  -key training.key -out training.csr
+
+## Run the following command to generate a certificate
+
+openssl x509 -req -in training.csr \
+  -passin file:passphrase.txt \
+  -CA training-CA.pem -CAkey training-CA.key -CAcreateserial \
+  -out training.crt -days 1825 -sha256 -extfile training.ext
+[student@workstation certs]$ openssl genrsa -out training.key 4096
+Generating RSA private key, 4096 bit long modulus (2 primes)
+...........................................................................++++
+...................................................................................................................................++++
+e is 65537 (0x010001)
+[student@workstation certs]$ openssl req -new -key training.key -out training.csr -subj "/C=US/ST=North Carolina/L=Raleigh/O=Red Hat/ CN=todo-https.apps.ocp4.example.com"
+req: Skipping unknown attribute " CN"
+[student@workstation certs]$ openssl x509 -req -in training.csr -passin file:passphrase.txt -CA training-CA.pem -CAkey training-CA.key -CAcreateserial -out training.crt -days 1825 -sha256 -extfile training.ext
+Signature ok
+subject=C = US, ST = North Carolina, L = Raleigh, O = Red Hat
+Getting CA Private Key
+[student@workstation certs]$ ls -lhrt
+total 36K
+-rw-rw-r--. 1 student student  566 Aug  8 14:21 openssl-commands.txt
+-rw-rw-r--. 1 student student   33 Oct 27 10:08 passphrase.txt
+-rw-r--r--. 1 student student  352 Oct 27 10:08 training.ext
+-rw-------. 1 student student 1.8K Oct 27 10:08 training-CA.key
+-rw-r--r--. 1 student student 1.4K Oct 27 10:08 training-CA.pem
+-rw-------. 1 student student 3.2K Oct 27 10:25 training.key
+-rw-rw-r--. 1 student student 1.7K Oct 27 10:26 training.csr
+-rw-rw-r--. 1 student student   41 Oct 27 10:27 training-CA.srl
+-rw-rw-r--. 1 student student 1.7K Oct 27 10:27 training.crt
+[student@workstation certs]$ cd ~/DO280/labs/network-ingress
+[student@workstation network-ingress]$ oc create secret tls todo-certs --cert certs/training.crt --key certs/training.key
+secret/todo-certs created
+[student@workstation network-ingress]$ oc create -f todo-app-v2.yaml
+deployment.apps/todo-https created
+service/todo-https created
+[student@workstation network-ingress]$ oc get pods
+NAME                          READY   STATUS    RESTARTS   AGE
+todo-http-c87b84b48-q4m5m     1/1     Running   0          18m
+todo-https-6c87f66c89-j2lww   1/1     Running   0          16s
+[student@workstation network-ingress]$ oc describe pod todo-https-6c87f66c89-j2lww | grep -A2 Mounts
+    Mounts:
+      /usr/local/etc/ssl/certs from tls-certs (ro)
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-xd2f9 (ro)
+[student@workstation network-ingress]$ oc create route passthrough todo-https --service todo-https --port 8443 --hostname todo-https.apps.ocp4.example.com
+route.route.openshift.io/todo-https created
+[student@workstation network-ingress]$ curl -vv -I --cacert certs/training-CA.pem https://todo-https.apps.ocp4.example.com
+* Rebuilt URL to: https://todo-https.apps.ocp4.example.com/
+*   Trying 192.168.50.254...
+* TCP_NODELAY set
+* Connected to todo-https.apps.ocp4.example.com (192.168.50.254) port 443 (#0)
+* ALPN, offering h2
+* ALPN, offering http/1.1
+* successfully set certificate verify locations:
+*   CAfile: certs/training-CA.pem
+  CApath: none
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.2 (IN), TLS handshake, Certificate (11):
+* TLSv1.2 (IN), TLS handshake, Server key exchange (12):
+* TLSv1.2 (IN), TLS handshake, Server finished (14):
+* TLSv1.2 (OUT), TLS handshake, Client key exchange (16):
+* TLSv1.2 (OUT), TLS change cipher, Change cipher spec (1):
+* TLSv1.2 (OUT), TLS handshake, Finished (20):
+* TLSv1.2 (IN), TLS handshake, Finished (20):
+* SSL connection using TLSv1.2 / ECDHE-RSA-AES256-GCM-SHA384
+* ALPN, server accepted to use h2
+* Server certificate:
+*  subject: C=US; ST=North Carolina; L=Raleigh; O=Red Hat
+*  start date: Oct 27 14:27:57 2022 GMT
+*  expire date: Oct 26 14:27:57 2027 GMT
+*  subjectAltName: host "todo-https.apps.ocp4.example.com" matched cert's "*.apps.ocp4.example.com"
+*  issuer: C=US; ST=North Carolina; L=Raleigh; O=Red Hat; CN=ocp4.example.com
+*  SSL certificate verify ok.
+* Using HTTP2, server supports multi-use
+* Connection state changed (HTTP/2 confirmed)
+* Copying HTTP/2 data in stream buffer to connection buffer after upgrade: len=0
+* Using Stream ID: 1 (easy handle 0x55c192ea16b0)
+> HEAD / HTTP/2
+> Host: todo-https.apps.ocp4.example.com
+> User-Agent: curl/7.61.1
+> Accept: */*
+> 
+* Connection state changed (MAX_CONCURRENT_STREAMS == 128)!
+< HTTP/2 200 
+HTTP/2 200 
+< server: nginx/1.14.1
+server: nginx/1.14.1
+< date: Thu, 27 Oct 2022 14:32:16 GMT
+date: Thu, 27 Oct 2022 14:32:16 GMT
+< content-type: text/html
+content-type: text/html
+< content-length: 3017
+content-length: 3017
+< last-modified: Thu, 28 Nov 2019 19:53:20 GMT
+last-modified: Thu, 28 Nov 2019 19:53:20 GMT
+< etag: "5de025b0-bc9"
+etag: "5de025b0-bc9"
+< strict-transport-security: max-age=63072000; includeSubdomains
+strict-transport-security: max-age=63072000; includeSubdomains
+< x-frame-options: DENY
+x-frame-options: DENY
+< x-content-type-options: nosniff
+x-content-type-options: nosniff
+< accept-ranges: bytes
+accept-ranges: bytes
+
+< 
+* Connection #0 to host todo-https.apps.ocp4.example.com left intact
+[student@workstation network-ingress]$ oc get svc todo-https -o jsonpath="{.spec.clusterIP}{'\n'}"
+172.30.223.194
+[student@workstation network-ingress]$ oc debug -t deployment/todo-https --image registry.access.redhat.com/ubi8/ubi:8.4
+Starting pod/todo-https-debug ...
+Pod IP: 10.9.0.18
+If you don't see a command prompt, try pressing enter.
+sh-4.4$ curl -I 172.30.223.194
+HTTP/1.1 301 Moved Permanently
+Server: nginx/1.14.1
+Date: Thu, 27 Oct 2022 14:34:01 GMT
+Content-Type: text/html
+Connection: keep-alive
+Location: https://172.30.223.194:8443/
+
+sh-4.4$ curl -s -k https://172.30.223.194:8443 | head -n5
+<!DOCTYPE html>
+<html lang="en" ng-app="todoItemsApp" ng-controller="appCtl">
+<head>
+    <meta charset="utf-8">
+    <title>ToDo app</title>
+sh-4.4$ exit
+exit
+
+Removing debug pod ...
+[student@workstation network-ingress]$ cd
+[student@workstation ~]$ oc delete project network-ingress
+project.project.openshift.io "network-ingress" deleted
+[student@workstation ~]$ lab network-ingress finish
+
+Completing Guided Exercise: Controlling Cluster Network Ingress
+
+ · Remove exercise files.......................................  SUCCESS
+
+Please use start if you wish to do the exercise again.
+
+[student@workstation ~]$ 
+-----------------------------------------------------------------28Oct22-----------------------------------
 
