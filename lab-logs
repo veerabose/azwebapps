@@ -6153,4 +6153,269 @@ exit
                                  Dload  Upload   Total   Spent    Left  Speed
 100  4927  100  4927    0     0   601k      0 --:--:-- --:--:-- --:--:--  601k
 [student@workstation ~]$ 
+[student@workstation ~]$ oc login -u developer -p developer https://api.ocp4.example.com:6443
+Login successful.
+
+You have one project on this server: "network-policy"
+
+Using project "network-policy".
+[student@workstation ~]$ oc get all
+NAME                         READY   STATUS    RESTARTS   AGE
+pod/hello-787445fd88-2lqc6   1/1     Running   0          20m
+pod/test-54bc94685b-hmjp9    1/1     Running   0          15m
+
+NAME            TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+service/hello   ClusterIP   172.30.219.111   <none>        8080/TCP   20m
+service/test    ClusterIP   172.30.246.126   <none>        8080/TCP   15m
+
+NAME                    READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/hello   1/1     1            1           20m
+deployment.apps/test    1/1     1            1           15m
+
+NAME                               DESIRED   CURRENT   READY   AGE
+replicaset.apps/hello-787445fd88   1         1         1       20m
+replicaset.apps/hello-84959f84f5   0         0         0       20m
+replicaset.apps/test-54bc94685b    1         1         1       15m
+replicaset.apps/test-68bd9bc7c9    0         0         0       15m
+
+NAME                                   IMAGE REPOSITORY                                                        TAGS   UPDATED
+imagestream.image.openshift.io/hello   image-registry.openshift-image-registry.svc:5000/network-policy/hello   v1.0   20 minutes ago
+imagestream.image.openshift.io/test    image-registry.openshift-image-registry.svc:5000/network-policy/test    v1.0   15 minutes ago
+
+NAME                             HOST/PORT                                    PATH   SERVICES   PORT       TERMINATION   WILDCARD
+route.route.openshift.io/hello   hello-network-policy.apps.ocp4.example.com          hello      8080-tcp                 None
+[student@workstation ~]$ oc new-project network-test
+Now using project "network-test" on server "https://api.ocp4.example.com:6443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app rails-postgresql-example
+
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=k8s.gcr.io/e2e-test-images/agnhost:2.33 -- /agnhost serve-hostname
+
+[student@workstation ~]$ oc new-app --name sample-app --image quay.io/redhattraining/hello-world-nginx:v1.0
+--> Found container image 44eaa13 (3 years old) from quay.io for "quay.io/redhattraining/hello-world-nginx:v1.0"
+
+    Red Hat Universal Base Image 8 
+    ------------------------------ 
+    The Universal Base Image is designed and engineered to be the base layer for all of your containerized applications, middleware and utilities. This base image is freely redistributable, but Red Hat only supports Red Hat technologies through subscriptions for Red Hat products. This image is maintained by Red Hat and updated regularly.
+
+    Tags: base rhel8
+
+    * An image stream tag will be created as "sample-app:v1.0" that will track this image
+
+--> Creating resources ...
+    imagestream.image.openshift.io "sample-app" created
+    deployment.apps "sample-app" created
+    service "sample-app" created
+--> Success
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose service/sample-app' 
+    Run 'oc status' to view your app.
+[student@workstation ~]$ ~/DO280/labs/network-policy/display-project-info.sh
+===================================================================
+PROJECT: network-policy
+
+POD NAME                 IP ADDRESS
+hello-787445fd88-2lqc6   10.9.0.17
+test-54bc94685b-hmjp9    10.9.0.18
+
+SERVICE NAME   CLUSTER-IP
+hello          172.30.219.111
+test           172.30.246.126
+
+ROUTE NAME   HOSTNAME                                     PORT
+hello        hello-network-policy.apps.ocp4.example.com   8080-tcp
+
+===================================================================
+PROJECT: network-test
+
+POD NAME
+sample-app-7cf4f6ff64-t8q9n
+
+===================================================================
+[student@workstation ~]$ oc get pods
+NAME                          READY   STATUS    RESTARTS   AGE
+sample-app-7cf4f6ff64-t8q9n   1/1     Running   0          103s
+[student@workstation ~]$ oc rsh sample-app-7cf4f6ff64-t8q9n curl 10.9.0.17:8080| grep -i hello
+    <h1>Hello, world from nginx!</h1>
+[student@workstation ~]$ oc rsh sample-app-7cf4f6ff64-t8q9n curl 10.9.0.18:8080| grep -i hello
+    <h1>Hello, world from nginx!</h1>
+[student@workstation ~]$ oc project network-policy
+Now using project "network-policy" on server "https://api.ocp4.example.com:6443".
+[student@workstation ~]$ cd ~/DO280/labs/network-policy
+[student@workstation network-policy]$ ls
+allow-from-openshift-ingress.yaml  allow-specific.yaml  deny-all.yaml  display-project-info.sh
+[student@workstation network-policy]$ cat deny-all.yaml 
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: deny-all
+spec:
+[student@workstation network-policy]$ oc create -f deny-all.yaml
+networkpolicy.networking.k8s.io/deny-all created
+[student@workstation network-policy]$ curl hello-network-policy.apps.ocp4.example.com | grep -i hello
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:--  0:00:09 --:--:--     0^C
+[student@workstation network-policy]$ oc rsh test-54bc94685b-hmjp9 curl 10.9.0.17:8080| grep -i hello
+command terminated with exit code 130
+[student@workstation network-policy]$ oc project network-test
+Now using project "network-test" on server "https://api.ocp4.example.com:6443".
+[student@workstation network-policy]$ oc get pods
+NAME                          READY   STATUS    RESTARTS   AGE
+sample-app-7cf4f6ff64-t8q9n   1/1     Running   0          10m
+[student@workstation network-policy]$ oc rsh sample-app-7cf4f6ff64-t8q9n curl 10.9.0.18:8080| grep -i hello
+command terminated with exit code 130
+[student@workstation network-policy]$ pwd
+/home/student/DO280/labs/network-policy
+[student@workstation network-policy]$ ls
+allow-from-openshift-ingress.yaml  allow-specific.yaml  deny-all.yaml  display-project-info.sh
+[student@workstation network-policy]$ cat allow-specific.yaml 
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-specific
+spec:
+  podSelector:
+    matchLabels:
+      deployment: CHANGE_ME
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: CHANGE_ME
+        podSelector:
+          matchLabels:
+            deployment: CHANGE_ME
+      ports:
+      - port: CHANGE_ME
+        protocol: CHANGE_ME
+[student@workstation network-policy]$ cd ~/DO280/solutions/network-policy/
+[student@workstation network-policy]$ pwd
+/home/student/DO280/solutions/network-policy
+[student@workstation network-policy]$ ls
+allow-from-openshift-ingress.yaml  allow-specific.yaml  deny-all.yaml
+[student@workstation network-policy]$ cat allow-specific.yaml 
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-specific
+spec:
+  podSelector:
+    matchLabels:
+      deployment: hello
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: network-test
+        podSelector:
+          matchLabels:
+            deployment: sample-app
+      ports:
+      - port: 8080
+        protocol: TCP
+[student@workstation network-policy]$ oc create -n network-policy -f allow-specific.yaml
+networkpolicy.networking.k8s.io/allow-specific created
+[student@workstation network-policy]$ oc get networkpolicies -n network-policy
+NAME             POD-SELECTOR       AGE
+allow-specific   deployment=hello   24s
+deny-all         <none>             7m34s
+[student@workstation network-policy]$ oc login -u admin -p redhat
+Login successful.
+
+You have access to 69 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "network-test".
+[student@workstation network-policy]$ oc label namespace network-test name=network-test
+namespace/network-test labeled
+[student@workstation network-policy]$ oc describe namespace network-test| grep -i lable
+[student@workstation network-policy]$ oc describe namespace network-test| grep -i labels
+Labels:       kubernetes.io/metadata.name=network-test
+[student@workstation network-policy]$ oc describe namespace network-test
+Name:         network-test
+Labels:       kubernetes.io/metadata.name=network-test
+              name=network-test
+Annotations:  openshift.io/description: 
+              openshift.io/display-name: 
+              openshift.io/requester: developer
+              openshift.io/sa.scc.mcs: s0:c26,c20
+              openshift.io/sa.scc.supplemental-groups: 1000690000/10000
+              openshift.io/sa.scc.uid-range: 1000690000/10000
+Status:       Active
+
+No resource quota.
+
+No LimitRange resource.
+[student@workstation network-policy]$ oc login -u developer -p developer
+Login successful.
+
+You have access to the following projects and can switch between them with 'oc project <projectname>':
+
+    network-policy
+  * network-test
+
+Using project "network-test".
+[student@workstation network-policy]$ oc project network-test
+Already on project "network-test" on server "https://api.ocp4.example.com:6443".
+[student@workstation network-policy]$ oc get pods
+NAME                          READY   STATUS    RESTARTS   AGE
+sample-app-7cf4f6ff64-t8q9n   1/1     Running   0          17m
+[student@workstation network-policy]$ oc rsh sample-app-7cf4f6ff64-t8q9n curl 10.9.0.17:8080| grep -i hello
+    <h1>Hello, world from nginx!</h1>
+[student@workstation network-policy]$ oc rsh sample-app-7cf4f6ff64-t8q9n curl 10.9.0.18:8080| grep -i hello
+command terminated with exit code 130
+[student@workstation network-policy]$ ls
+allow-from-openshift-ingress.yaml  allow-specific.yaml  deny-all.yaml
+[student@workstation network-policy]$ cat allow-from-openshift-ingress.yaml 
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-from-openshift-ingress
+spec:
+  podSelector: {}
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          network.openshift.io/policy-group: ingress
+[student@workstation network-policy]$ oc create -n network-policy -f allow-from-openshift-ingress.yaml 
+networkpolicy.networking.k8s.io/allow-from-openshift-ingress created
+[student@workstation network-policy]$ oc get networkpolicies -n network-policy
+NAME                           POD-SELECTOR       AGE
+allow-from-openshift-ingress   <none>             18s
+allow-specific                 deployment=hello   7m44s
+deny-all                       <none>             14m
+[student@workstation network-policy]$ oc login -u admin -p redhat
+Login successful.
+
+You have access to 69 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "network-test".
+[student@workstation network-policy]$ oc label namespace default network.openshift.io/policy-group=ingress
+namespace/default labeled
+[student@workstation network-policy]$ curl -s hello-network-policy.apps.ocp4.example.com | grep -i hello
+    <h1>Hello, world from nginx!</h1>
+[student@workstation network-policy]$ cd
+[student@workstation ~]$ lab network-policy finish
+
+Completing Guided Exercise: Configuring Network Policies
+
+ · Delete OpenShift project 'network-policy'...................  SUCCESS
+ · Wait for project 'network-policy' to be gone................  SUCCESS
+ · Delete OpenShift project 'network-test'.....................  SUCCESS
+ · Wait for project 'network-test' to be gone..................  SUCCESS
+ · Remove network.openshift.io/policy-group=ingress label from 
+   the default project.........................................  SUCCESS
+ · Remove exercise files.......................................  SUCCESS
+ · Remove solution files.......................................  SUCCESS
+
+Please use start if you wish to do the exercise again.
+
+[student@workstation ~]$ 
+
+--------------------------------------------------------30Oct22------------------------------------------------------------
 
