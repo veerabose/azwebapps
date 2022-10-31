@@ -6417,5 +6417,475 @@ Please use start if you wish to do the exercise again.
 
 [student@workstation ~]$ 
 
---------------------------------------------------------30Oct22------------------------------------------------------------
+--------------------------------------------------------31Oct22------------------------------------------------------------
+[student@workstation ~]$ lab network-review start
 
+Checking prerequisites for Lab: Configuring OpenShift Networking for Applications
+
+ Verify the OpenShift cluster is running:
+ · Waiting up to 5 minutes for router pods to be available.....  SUCCESS
+ · OAuth pods are available....................................  SUCCESS
+ · API pods are available......................................  SUCCESS
+ · Control plane node 'master01' is ready......................  SUCCESS
+ · Control plane node 'master02' is ready......................  SUCCESS
+ · Control plane node 'master03' is ready......................  SUCCESS
+ Checking for conflicts with existing OpenShift projects:
+ · The 'network-review' project is absent......................  SUCCESS
+
+Setting up the classroom for Lab: Configuring OpenShift Networking for Applications
+
+ · Validate 'admin' can log in with password 'redhat'..........  SUCCESS
+ · Validate 'leader' can log in with password 'redhat'.........  SUCCESS
+ · Validate 'developer' can log in with password 'developer'...  SUCCESS
+ Preparing Workstation:
+ · Download exercise files.....................................  SUCCESS
+ · Download solution files.....................................  SUCCESS
+ Configuring Certificates:
+ · Generating unique CA key password...........................  SUCCESS
+ · Setting environment variable in cert. configuration file....  SUCCESS
+ · Generating the CA key.......................................  SUCCESS
+ · Generating CA certificate...................................  SUCCESS
+ · Creating private key........................................  SUCCESS
+ · Updating privileges on certs directory......................  SUCCESS
+
+Overall start status...........................................  SUCCESS
+
+[student@workstation ~]$ oc login -u developer -p developer https://api.ocp4.example.com:6443
+Login successful.
+
+You don't have any projects. You can try to create a new project, by running
+
+    oc new-project <projectname>
+
+[student@workstation ~]$ oc new-project network-review
+Now using project "network-review" on server "https://api.ocp4.example.com:6443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app rails-postgresql-example
+
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=k8s.gcr.io/e2e-test-images/agnhost:2.33 -- /agnhost serve-hostname
+
+[student@workstation ~]$ cd ~/DO280/labs/network-review
+[student@workstation network-review]$ vi php-http.yaml 
+[student@workstation network-review]$ cat php-http.yaml 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: php-http
+  labels:
+    app: php-http
+    name: php-http
+  namespace: network-review
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: php-http
+      name: php-http
+  template:
+    metadata:
+      labels:
+        app: php-http
+        name: php-http
+    spec:
+      containers:
+      - resources:
+          limits:
+            memory: "128Mi"
+            cpu: '0.5'
+        # Set the container image name
+        image: 'quay.io/redhattraining/php-ssl:v1.0'
+        name: php-http
+        ports:
+          # Define the container port
+        - containerPort: 8080
+          name: php-http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: php-http
+    name: php-http
+  name: php-http
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    name: php-http
+[student@workstation network-review]$ oc create -f php-http.yaml
+deployment.apps/php-http created
+service/php-http created
+[student@workstation network-review]$ oc get pods
+NAME                        READY   STATUS    RESTARTS   AGE
+php-http-5664cc5fbb-s7h7g   1/1     Running   0          20s
+[student@workstation network-review]$ oc expose svc php-http --hostname php-http.apps.ocp4.example.com
+route.route.openshift.io/php-http exposed
+[student@workstation network-review]$ oc get routes
+NAME       HOST/PORT                        PATH   SERVICES   PORT   TERMINATION   WILDCARD
+php-http   php-http.apps.ocp4.example.com          php-http   8080                 None
+[student@workstation network-review]$ cd ~/DO280/labs/network-review/
+[student@workstation network-review]$ ls
+allow-from-openshift-ingress.yaml  certs  deny-all.yaml  php-https.yaml  php-http.yaml
+[student@workstation network-review]$ cat deny-all.yaml 
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: deny-all
+spec:
+[student@workstation network-review]$ vi deny-all.yaml 
+[student@workstation network-review]$ cat deny-all.yaml 
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: deny-all
+spec:
+ podSelector: {}       
+[student@workstation network-review]$ oc create -f deny-all.yaml
+networkpolicy.networking.k8s.io/deny-all created
+[student@workstation network-review]$ http://php-http.apps.ocp4.example.com
+bash: http://php-http.apps.ocp4.example.com: No such file or directory
+[student@workstation network-review]$ curl http://php-http.apps.ocp4.example.com
+^C
+[student@workstation network-review]$ ls
+allow-from-openshift-ingress.yaml  certs  deny-all.yaml  php-https.yaml  php-http.yaml
+[student@workstation network-review]$ cat allow-from-openshift-ingress.yaml 
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-from-openshift-ingress
+spec:
+  ingress:
+[student@workstation network-review]$ vi allow-from-openshift-ingress.yaml 
+[student@workstation network-review]$ oc create -f allow-from-openshift-ingress.yaml 
+error: error parsing allow-from-openshift-ingress.yaml: error converting YAML to JSON: yaml: line 6: did not find expected key
+[student@workstation network-review]$ vi allow-from-openshift-ingress.yaml 
+[student@workstation network-review]$ vi allow-from-openshift-ingress.yaml 
+[student@workstation network-review]$ oc create -f allow-from-openshift-ingress.yaml 
+networkpolicy.networking.k8s.io/allow-from-openshift-ingress created
+[student@workstation network-review]$ cat allow-from-openshift-ingress.yaml 
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-from-openshift-ingress
+spec:
+  podSelector: {}       
+  ingress:
+  - from:
+     - namespaceSelector:
+          matchLabels:
+             network.openshift.io/policy-group: ingress      
+[student@workstation network-review]$ oc login -u admin -p redhat
+Login successful.
+
+You have access to 68 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "network-review".
+[student@workstation network-review]$ oc label namespace default network.openshift.io/policy-group=ingress
+namespace/default labeled
+[student@workstation network-review]$ for X in {1..4};do curl -s http://php-http.apps.ocp4.example.com | grep "PHP";done
+    <title>PHP Application</title>
+    <title>PHP Application</title>
+    <title>PHP Application</title>
+    <title>PHP Application</title>
+[student@workstation network-review]$ oc login -u developer -p developer
+Login successful.
+
+You have one project on this server: "network-review"
+
+Using project "network-review".
+[student@workstation network-review]$ cd certs
+[student@workstation certs]$ openssl req -new -key training.key -subj "/C=US/ST=North Carolina/L=Raleigh/O=Red Hat/CN=php-https.apps.ocp4.example.com" -out training.csr
+[student@workstation certs]$ ls -lhrt
+total 28K
+-rw-rw-r--. 1 student student  566 Aug  8 14:21 openssl-commands.txt
+-rw-rw-r--. 1 student student   33 Oct 31 12:32 passphrase.txt
+-rw-r--r--. 1 student student  352 Oct 31 12:32 training.ext
+-rw-------. 1 student student 1.8K Oct 31 12:32 training-CA.key
+-rw-r--r--. 1 student student 1.4K Oct 31 12:32 training-CA.pem
+-rw-------. 1 student student 1.7K Oct 31 12:32 training.key
+-rw-rw-r--. 1 student student 1021 Oct 31 12:52 training.csr
+[student@workstation certs]$ cat openssl-commands.txt 
+## Run the following command to generate a certificate signing request
+## Update where necessary before running the command!
+
+openssl req -new -key training.key \
+  -subj "/C=US/ST=North Carolina/L=Raleigh/O=Red Hat/CN=php-https.<WILDCARD DOMAIN>" \
+  -out <EXPORT CSR>
+
+## Run the following command to generate a certificate
+## Update where necessary before running the command!
+
+openssl x509 -req -in <CSR FILE> \
+  -CA <CA FILE> -CAkey training-CA.key -CAcreateserial \
+  -passin file:passphrase.txt \
+  -out <EXPORT CRT> -days 3650 -sha256 -extfile training.ext
+[student@workstation certs]$ openssl x509 -req -in training.csr -CA training-CA.pem -CAkey training-CA.key -CAcreateserial -passin file:passphrase.txt -out training.crt -days 3650 -sha256 -extfile training.ext
+Signature ok
+subject=C = US, ST = North Carolina, L = Raleigh, O = Red Hat, CN = php-https.apps.ocp4.example.com
+Getting CA Private Key
+[student@workstation certs]$ ls -lhrt
+total 36K
+-rw-rw-r--. 1 student student  566 Aug  8 14:21 openssl-commands.txt
+-rw-rw-r--. 1 student student   33 Oct 31 12:32 passphrase.txt
+-rw-r--r--. 1 student student  352 Oct 31 12:32 training.ext
+-rw-------. 1 student student 1.8K Oct 31 12:32 training-CA.key
+-rw-r--r--. 1 student student 1.4K Oct 31 12:32 training-CA.pem
+-rw-------. 1 student student 1.7K Oct 31 12:32 training.key
+-rw-rw-r--. 1 student student 1021 Oct 31 12:52 training.csr
+-rw-rw-r--. 1 student student   41 Oct 31 12:54 training-CA.srl
+-rw-rw-r--. 1 student student 1.4K Oct 31 12:54 training.crt
+[student@workstation certs]$ cd ~/DO280/labs/network-review
+[student@workstation network-review]$ oc create secret tls php-certs --cert certs/training.crt --key certs/training.key
+secret/php-certs created
+[student@workstation network-review]$ oc get seceret
+error: the server doesn't have a resource type "seceret"
+[student@workstation network-review]$ oc get secret
+NAME                       TYPE                                  DATA   AGE
+builder-dockercfg-nzzkn    kubernetes.io/dockercfg               1      22m
+builder-token-8qdcs        kubernetes.io/service-account-token   4      22m
+builder-token-fmtj9        kubernetes.io/service-account-token   4      22m
+default-dockercfg-tz6jt    kubernetes.io/dockercfg               1      22m
+default-token-2jm2w        kubernetes.io/service-account-token   4      22m
+default-token-psg8n        kubernetes.io/service-account-token   4      22m
+deployer-dockercfg-xps7m   kubernetes.io/dockercfg               1      22m
+deployer-token-wx6x4       kubernetes.io/service-account-token   4      22m
+deployer-token-z5dsl       kubernetes.io/service-account-token   4      22m
+php-certs                  kubernetes.io/tls                     2      12s
+[student@workstation network-review]$ oc describe secret php-certs
+Name:         php-certs
+Namespace:    network-review
+Labels:       <none>
+Annotations:  <none>
+
+Type:  kubernetes.io/tls
+
+Data
+====
+tls.crt:  1395 bytes
+tls.key:  1679 bytes
+[student@workstation network-review]$ vi php-https.yaml 
+[student@workstation network-review]$ cat php-https.yaml 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: php-https
+  labels:
+    app: php-https
+    name: php-https
+  namespace: network-review
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: php-https
+      name: php-https
+  template:
+    metadata:
+      labels:
+        app: php-https
+        name: php-https
+    spec:
+      containers:
+      - resources:
+          limits:
+            memory: "128Mi"
+            cpu: '0.5'
+        # Set the container image name
+        image: 'quay.io/redhattraining/php-ssl:v1.1'
+        name: php-https
+        ports:
+          # Define the container port
+        - containerPort: 8443
+          name: php-https
+        volumeMounts:
+        - name: tls-certs
+          readOnly: true
+          mountPath: /usr/local/etc/ssl/certs
+      volumes:
+      - name: tls-certs
+        secret:
+          # Define the name the secret
+          secretName: php-certs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: php-https
+    name: php-https
+  name: php-https
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    name: php-https
+[student@workstation network-review]$ oc create -f php-https.yaml
+deployment.apps/php-https created
+service/php-https created
+[student@workstation network-review]$ oc get pods
+NAME                         READY   STATUS              RESTARTS   AGE
+php-http-5664cc5fbb-s7h7g    1/1     Running             0          22m
+php-https-5f86674898-2cpqv   0/1     ContainerCreating   0          8s
+[student@workstation network-review]$ oc get pods
+NAME                         READY   STATUS    RESTARTS   AGE
+php-http-5664cc5fbb-s7h7g    1/1     Running   0          22m
+php-https-5f86674898-2cpqv   1/1     Running   0          29s
+[student@workstation network-review]$ oc create route passthrough php-https --service php-https --port 8443 --hostname php-https.apps.ocp4.example.com
+route.route.openshift.io/php-https created
+[student@workstation network-review]$ oc get route
+NAME        HOST/PORT                         PATH   SERVICES    PORT   TERMINATION   WILDCARD
+php-http    php-http.apps.ocp4.example.com           php-http    8080                 None
+php-https   php-https.apps.ocp4.example.com          php-https   8443   passthrough   None
+[student@workstation network-review]$ oc describe route php-https
+Name:			php-https
+Namespace:		network-review
+Created:		25 seconds ago
+Labels:			app=php-https
+			name=php-https
+Annotations:		<none>
+Requested Host:		php-https.apps.ocp4.example.com
+			   exposed on router default (host router-default.apps.ocp4.example.com) 25 seconds ago
+Path:			<none>
+TLS Termination:	passthrough
+Insecure Policy:	<none>
+Endpoint Port:		8443
+
+Service:	php-https
+Weight:		100 (100%)
+Endpoints:	10.8.0.34:8443
+[student@workstation network-review]$ curl -v --cacert certs/training-CA.pem https://php-https.apps.ocp4.example.com
+* Rebuilt URL to: https://php-https.apps.ocp4.example.com/
+*   Trying 192.168.50.254...
+* TCP_NODELAY set
+* Connected to php-https.apps.ocp4.example.com (192.168.50.254) port 443 (#0)
+* ALPN, offering h2
+* ALPN, offering http/1.1
+* successfully set certificate verify locations:
+*   CAfile: certs/training-CA.pem
+  CApath: none
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.3 (IN), TLS handshake, [no content] (0):
+* TLSv1.3 (IN), TLS handshake, Encrypted Extensions (8):
+* TLSv1.3 (IN), TLS handshake, [no content] (0):
+* TLSv1.3 (IN), TLS handshake, Certificate (11):
+* TLSv1.3 (IN), TLS handshake, [no content] (0):
+* TLSv1.3 (IN), TLS handshake, CERT verify (15):
+* TLSv1.3 (IN), TLS handshake, [no content] (0):
+* TLSv1.3 (IN), TLS handshake, Finished (20):
+* TLSv1.3 (OUT), TLS change cipher, Change cipher spec (1):
+* TLSv1.3 (OUT), TLS handshake, [no content] (0):
+* TLSv1.3 (OUT), TLS handshake, Finished (20):
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384
+* ALPN, server accepted to use http/1.1
+* Server certificate:
+*  subject: C=US; ST=North Carolina; L=Raleigh; O=Red Hat; CN=php-https.apps.ocp4.example.com
+*  start date: Oct 31 16:54:36 2022 GMT
+*  expire date: Oct 28 16:54:36 2032 GMT
+*  subjectAltName: host "php-https.apps.ocp4.example.com" matched cert's "*.apps.ocp4.example.com"
+*  issuer: C=US; ST=North Carolina; L=Raleigh; O=Red Hat; CN=ocp4.example.com
+*  SSL certificate verify ok.
+* TLSv1.3 (OUT), TLS app data, [no content] (0):
+> GET / HTTP/1.1
+> Host: php-https.apps.ocp4.example.com
+> User-Agent: curl/7.61.1
+> Accept: */*
+> 
+* TLSv1.3 (IN), TLS handshake, [no content] (0):
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+* TLSv1.3 (IN), TLS handshake, [no content] (0):
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+* TLSv1.3 (IN), TLS app data, [no content] (0):
+< HTTP/1.1 200 OK
+< Date: Mon, 31 Oct 2022 17:04:02 GMT
+< Server: Apache/2.4.37 (Red Hat Enterprise Linux) OpenSSL/1.1.1
+< X-Powered-By: PHP/7.2.11
+< Transfer-Encoding: chunked
+< Content-Type: text/html; charset=UTF-8
+< 
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <title>PHP Application</title>
+  </head>
+  <body>
+    <h2><strong>About this application</strong></h2>
+            <i class="fa fa-lock"/><span style="color: #339966;"><strong>
+          The application is currently served over TLS        </span></strong>
+          <ul>
+      <li>
+        <strong>Current system load:</strong> 151      </li>
+      <li>
+        <strong>Number of connections:</strong> 0      </li>
+      <li>
+        <strong>Memory usage:</strong> 45 Mb      </li>
+    </ul>
+  </body>
+* Connection #0 to host php-https.apps.ocp4.example.com left intact
+</html>[student@workstation network-review]$ cd
+[student@workstation ~]$ lab network-review grade
+
+Grading the student's work for Lab: Configuring OpenShift Networking for Applications
+
+ · network-review is present...................................  PASS
+ · php-http deployment is present..............................  PASS
+ · php-http deployment points to v1.0 of the application.......  PASS
+ · php-http deployment uses port 8080..........................  PASS
+ · php-http container is running...............................  PASS
+ · Route for php-http is present...............................  PASS
+ · Route for php-http is accessible............................  PASS
+ · SSL certificate is present..................................  PASS
+ · SSL certificate matches required CN.........................  PASS
+ · TLS secret is present.......................................  PASS
+ · php-https deployment is present.............................  PASS
+ · php-https deployment points to v1.1 of the application......  PASS
+ · php-https deployment uses port 8443.........................  PASS
+ · php-https container is running..............................  PASS
+ · Route for php-https is present..............................  PASS
+ · Route for php-https is accessible using TLS CA..............  PASS
+ · Network policy denies pod to pod traffic....................  PASS
+ · Default namespace is labeled with network.openshift.io/polic
+   y-group=ingress.............................................  PASS
+
+Overall exercise grade.........................................  PASS
+
+[student@workstation ~]$ lab network-review finish
+
+Completing Lab: Configuring OpenShift Networking for Applications
+
+ · Delete OpenShift project 'network-review'...................  SUCCESS
+ · Wait for project 'network-review' to be gone................  SUCCESS
+ · Remove network.openshift.io/policy-group=ingress label from 
+   the default project.........................................  SUCCESS
+ · Remove exercise files.......................................  SUCCESS
+ · Remove solution files.......................................  SUCCESS
+
+Please use start if you wish to do the exercise again.
+
+[student@workstation ~]$ 
+---------------------------------------------------SUMMARY-------------------------------
+In this chapter, you learned:
+
+• OpenShift implements a software-defined networking (SDN) to manage the network
+infrastructure of the cluster. SDN decouples the software that handles the traffic from the
+underlying mechanisms that route the traffic.
+• Kubernetes provides services that allow the logical grouping of pods under a common access
+route. Services act as load balancers in front of one or more pods.
+• Services use selectors (labels) that indicate which pods available to the service.
+• There are two kind of routes: secure, and insecure. Secure routes encrypt the traffic using TLS
+certificates, and insecure routes forward traffic over an unencrypted connection.
+Secure routes support three modes: edge, passthrough, and re-encryption.
+• Network policies control network traffic to pods. Logical zones can be created in the SDN to
+segregate traffic among pods in any namespace.
+
+----------------------------------------------------Ch-13-Controlling Pod Scheduling-------------------------------------------------
