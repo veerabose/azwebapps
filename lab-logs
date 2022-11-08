@@ -7503,4 +7503,295 @@ Please use start if you wish to do the exercise again.
 
 [student@workstation ~]$ 
 
+-----------------------------------------------------------
+ [student@workstation ~]$ lab schedule-scale start
 
+Checking prerequisites for Guided Exercise: Scaling an Application
+
+ Verify the OpenShift cluster is running:
+ · Router pods are available...................................  SUCCESS
+ · OAuth pods are available....................................  SUCCESS
+ · API pods are available......................................  SUCCESS
+ · Control plane node 'master01' is ready......................  SUCCESS
+ · Control plane node 'master02' is ready......................  SUCCESS
+ · Control plane node 'master03' is ready......................  SUCCESS
+
+ Checking for conflicts with existing OpenShift projects:
+ · The 'schedule-scale' project is absent......................  SUCCESS
+
+Setting up the classroom for Guided Exercise: Scaling an Application
+
+ · Validate 'admin' can log in with password 'redhat'..........  SUCCESS
+ · Validate 'leader' can log in with password 'redhat'.........  SUCCESS
+ · Validate 'developer' can log in with password 'developer'...  SUCCESS
+
+ Preparing the student's cluster:
+ · Download exercise files.....................................  SUCCESS
+ · Download solution files.....................................  SUCCESS
+
+Overall start status...........................................  SUCCESS
+
+[student@workstation ~]$ 
+    
+[student@workstation ~]$ oc login -u developer -p developer https://api.ocp4.example.com:6443
+Login successful.
+
+You have one project on this server: "schedule-scale"
+
+Using project "schedule-scale".
+[student@workstation ~]$ oc new-project schedule-scale
+Error from server (AlreadyExists): project.project.openshift.io "schedule-scale" already exists
+[student@workstation ~]$ vim ~/DO280/labs/schedule-scale/loadtest.yaml
+[student@workstation ~]$ oc whoami
+developer
+[student@workstation ~]$ cat ~/DO280/labs/schedule-scale/loadtest.yaml
+apiVersion: v1
+items:
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    creationTimestamp: null
+    labels:
+      app: loadtest
+    name: loadtest
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: loadtest
+    strategy: {}
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: loadtest
+      spec:
+        containers:
+        - image: quay.io/redhattraining/loadtest:v1.0
+          name: loadtest
+          resources: 
+            requests:
+              cpu: "25m"
+              memory: 25Mi
+            limits:
+              cpu: "100m"
+              memory: 100Mi
+  status: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    creationTimestamp: null
+    labels:
+      app: loadtest
+    name: loadtest
+  spec:
+    ports:
+    - port: 80
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      app: loadtest
+  status:
+    loadBalancer: {}
+- apiVersion: route.openshift.io/v1
+  kind: Route
+  metadata:
+    annotations:
+      haproxy.router.openshift.io/timeout: 60s
+    creationTimestamp: null
+    labels:
+      app: loadtest
+    name: loadtest
+  spec:
+    host: ""
+    port:
+      targetPort: 8080
+    subdomain: ""
+    to:
+      kind: ""
+      name: loadtest
+      weight: null
+  status:
+    ingress: null
+kind: List
+metadata: {}
+[student@workstation ~]$ oc create --save-config -f ~/DO280/labs/schedule-scale/loadtest.yaml
+deployment.apps/loadtest created
+service/loadtest created
+route.route.openshift.io/loadtest created
+[student@workstation ~]$ oc get all
+NAME                           READY   STATUS              RESTARTS   AGE
+pod/loadtest-5b96d5f9f-l49vz   0/1     ContainerCreating   0          10s
+
+NAME               TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+service/loadtest   ClusterIP   172.30.165.31   <none>        80/TCP    10s
+
+NAME                       READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/loadtest   0/1     1            0           10s
+
+NAME                                 DESIRED   CURRENT   READY   AGE
+replicaset.apps/loadtest-5b96d5f9f   1         1         0       10s
+
+NAME                                HOST/PORT                                       PATH   SERVICES   PORT   TERMINATION   WILDCARD
+route.route.openshift.io/loadtest   loadtest-schedule-scale.apps.ocp4.example.com          loadtest   8080                 None
+[student@workstation ~]$ oc get pods
+NAME                       READY   STATUS    RESTARTS   AGE
+loadtest-5b96d5f9f-l49vz   1/1     Running   0          30s
+[student@workstation ~]$ oc describe pod/^C
+[student@workstation ~]$ oc describe pod loadtest-5b96d5f9f-l49vz | grep -A2 -E "Limits|Requests"
+    Limits:
+      cpu:     100m
+      memory:  100Mi
+    Requests:
+      cpu:        25m
+      memory:     25Mi
+[student@workstation ~]$ oc scale --replicas 5 deployment/loadtest
+deployment.apps/loadtest scaled
+[student@workstation ~]$ oc get pods
+NAME                       READY   STATUS              RESTARTS   AGE
+loadtest-5b96d5f9f-bgd6f   1/1     Running             0          4s
+loadtest-5b96d5f9f-cz4xc   0/1     ContainerCreating   0          4s
+loadtest-5b96d5f9f-l49vz   1/1     Running             0          6m1s
+loadtest-5b96d5f9f-mm5c7   0/1     ContainerCreating   0          4s
+loadtest-5b96d5f9f-th6z2   0/1     ContainerCreating   0          4s
+[student@workstation ~]$ oc get pods
+NAME                       READY   STATUS              RESTARTS   AGE
+loadtest-5b96d5f9f-bgd6f   1/1     Running             0          16s
+loadtest-5b96d5f9f-cz4xc   0/1     ContainerCreating   0          16s
+loadtest-5b96d5f9f-l49vz   1/1     Running             0          6m13s
+loadtest-5b96d5f9f-mm5c7   0/1     ContainerCreating   0          16s
+loadtest-5b96d5f9f-th6z2   0/1     ContainerCreating   0          16s
+[student@workstation ~]$ oc get pods
+NAME                       READY   STATUS    RESTARTS   AGE
+loadtest-5b96d5f9f-bgd6f   1/1     Running   0          34s
+loadtest-5b96d5f9f-cz4xc   1/1     Running   0          34s
+loadtest-5b96d5f9f-l49vz   1/1     Running   0          6m31s
+loadtest-5b96d5f9f-mm5c7   1/1     Running   0          34s
+loadtest-5b96d5f9f-th6z2   1/1     Running   0          34s
+[student@workstation ~]$ oc get pods -o wide
+NAME                       READY   STATUS    RESTARTS   AGE     IP           NODE       NOMINATED NODE   READINESS GATES
+loadtest-5b96d5f9f-bgd6f   1/1     Running   0          59s     10.9.0.20    master01   <none>           <none>
+loadtest-5b96d5f9f-cz4xc   1/1     Running   0          59s     10.8.0.34    master02   <none>           <none>
+loadtest-5b96d5f9f-l49vz   1/1     Running   0          6m56s   10.9.0.19    master01   <none>           <none>
+loadtest-5b96d5f9f-mm5c7   1/1     Running   0          59s     10.10.0.51   master03   <none>           <none>
+loadtest-5b96d5f9f-th6z2   1/1     Running   0          59s     10.8.0.33    master02   <none>           <none>
+[student@workstation ~]$ oc adm top node master01
+Error from server (Forbidden): nodes.metrics.k8s.io "master01" is forbidden: User "developer" cannot get resource "nodes" in API group "metrics.k8s.io" at the cluster scope
+[student@workstation ~]$ oc scale --replicas 1 deployment/loadtest
+deployment.apps/loadtest scaled
+[student@workstation ~]$ oc get pods -o wide
+NAME                       READY   STATUS        RESTARTS   AGE     IP           NODE       NOMINATED NODE   READINESS GATES
+loadtest-5b96d5f9f-bgd6f   1/1     Terminating   0          102s    10.9.0.20    master01   <none>           <none>
+loadtest-5b96d5f9f-cz4xc   1/1     Terminating   0          102s    10.8.0.34    master02   <none>           <none>
+loadtest-5b96d5f9f-l49vz   1/1     Terminating   0          7m39s   10.9.0.19    master01   <none>           <none>
+loadtest-5b96d5f9f-mm5c7   1/1     Running       0          102s    10.10.0.51   master03   <none>           <none>
+loadtest-5b96d5f9f-th6z2   1/1     Terminating   0          102s    10.8.0.33    master02   <none>           <none>
+[student@workstation ~]$ oc autoscale deployment/loadtest --min 2 --max 10 --cpu-percent 50
+horizontalpodautoscaler.autoscaling/loadtest autoscaled
+[student@workstation ~]$ oc get pods
+NAME                       READY   STATUS    RESTARTS   AGE
+loadtest-5b96d5f9f-mm5c7   1/1     Running   0          2m59s
+[student@workstation ~]$ oc get hpa/loadtest
+NAME       REFERENCE             TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+loadtest   Deployment/loadtest   <unknown>/50%   2         10        2          31s
+[student@workstation ~]$ oc get hpa/loadtest
+NAME       REFERENCE             TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+loadtest   Deployment/loadtest   0%/50%    2         10        2          2m29s
+[student@workstation ~]$ oc get route/loadtest
+NAME       HOST/PORT                                       PATH   SERVICES   PORT   TERMINATION   WILDCARD
+loadtest   loadtest-schedule-scale.apps.ocp4.example.com          loadtest   8080                 None
+[student@workstation ~]$ curl -X GET http://loadtest-schedule-scale.apps.ocp4.example.com/api/loadtest/v1/cpu/1
+curl: (52) Empty reply from server
+[student@workstation ~]$ curl -X GET http://loadtest-schedule-scale.apps.ocp4.example.com/api/loadtest/v1/cpu/1
+curl: (52) Empty reply from server
+[student@workstation ~]$ oc get pods
+NAME                       READY   STATUS    RESTARTS   AGE
+loadtest-5b96d5f9f-8qgkc   1/1     Running   0          14m
+loadtest-5b96d5f9f-cvb7k   1/1     Running   0          19s
+loadtest-5b96d5f9f-gpkxf   1/1     Running   0          49s
+loadtest-5b96d5f9f-hx8lg   1/1     Running   0          34s
+loadtest-5b96d5f9f-kthd9   1/1     Running   0          19s
+loadtest-5b96d5f9f-mm5c7   1/1     Running   0          17m
+loadtest-5b96d5f9f-qgv2p   1/1     Running   0          34s
+loadtest-5b96d5f9f-sbsn8   1/1     Running   0          34s
+[student@workstation ~]$ oc get hpa
+NAME       REFERENCE             TARGETS    MINPODS   MAXPODS   REPLICAS   AGE
+loadtest   Deployment/loadtest   160%/50%   2         10        8          15m
+[student@workstation ~]$ oc get hpa
+NAME       REFERENCE             TARGETS    MINPODS   MAXPODS   REPLICAS   AGE
+loadtest   Deployment/loadtest   170%/50%   2         10        8          15m
+[student@workstation ~]$ oc get pods
+NAME                       READY   STATUS    RESTARTS   AGE
+loadtest-5b96d5f9f-8qgkc   1/1     Running   0          15m
+loadtest-5b96d5f9f-cvb7k   1/1     Running   0          47s
+loadtest-5b96d5f9f-gpkxf   1/1     Running   0          77s
+loadtest-5b96d5f9f-hx8lg   1/1     Running   0          62s
+loadtest-5b96d5f9f-kthd9   1/1     Running   0          47s
+loadtest-5b96d5f9f-mm5c7   1/1     Running   0          18m
+loadtest-5b96d5f9f-qgv2p   1/1     Running   0          62s
+loadtest-5b96d5f9f-sbsn8   1/1     Running   0          62s
+[student@workstation ~]$ oc new-app --name scaling --image quay.io/redhattraining/scaling:v1.0
+--> Found container image 4e17b8d (3 years old) from quay.io for "quay.io/redhattraining/scaling:v1.0"
+
+    Apache 2.4 with PHP 7.2 
+    ----------------------- 
+    PHP 7.2 available as container is a base platform for building and running various PHP 7.2 applications and frameworks. PHP is an HTML-embedded scripting language. PHP attempts to make it easy for developers to write dynamically generated web pages. PHP also offers built-in database integration for several commercial and non-commercial database management systems, so writing a database-enabled webpage with PHP is fairly simple. The most common use of PHP coding is probably as a replacement for CGI scripts.
+
+    Tags: builder, php, php72, rh-php72
+
+    * An image stream tag will be created as "scaling:v1.0" that will track this image
+
+--> Creating resources ...
+    imagestream.image.openshift.io "scaling" created
+    deployment.apps "scaling" created
+    service "scaling" created
+--> Success
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose service/scaling' 
+    Run 'oc status' to view your app.
+[student@workstation ~]$ oc expose svc/scaling
+route.route.openshift.io/scaling exposed
+[student@workstation ~]$ oc scale --replicas 3 deployment/scaling
+deployment.apps/scaling scaled
+[student@workstation ~]$ oc get pods -o wide -l deployment=scaling
+NAME                       READY   STATUS    RESTARTS   AGE   IP           NODE       NOMINATED NODE   READINESS GATES
+scaling-6cd945b997-785jq   1/1     Running   0          29s   10.10.0.56   master03   <none>           <none>
+scaling-6cd945b997-pnt2c   1/1     Running   0          83s   10.9.0.30    master01   <none>           <none>
+scaling-6cd945b997-zb6zc   1/1     Running   0          29s   10.8.0.40    master02   <none>           <none>
+[student@workstation ~]$ oc get route/scaling
+NAME      HOST/PORT                                      PATH   SERVICES   PORT       TERMINATION   WILDCARD
+scaling   scaling-schedule-scale.apps.ocp4.example.com          scaling    8080-tcp                 None
+[student@workstation ~]$ ~/DO280/labs/schedule-scale/curl-route.sh
+     32 Server IP: 10.10.0.56 
+     34 Server IP: 10.8.0.40 
+     34 Server IP: 10.9.0.30 
+[student@workstation ~]$ ~/DO280/labs/schedule-scale/curl-route.sh
+     34 Server IP: 10.10.0.56 
+     34 Server IP: 10.8.0.40 
+     32 Server IP: 10.9.0.30 
+[student@workstation ~]$ ~/DO280/labs/schedule-scale/curl-route.sh
+     34 Server IP: 10.10.0.56 
+     32 Server IP: 10.8.0.40 
+     34 Server IP: 10.9.0.30 
+[student@workstation ~]$ ~/DO280/labs/schedule-scale/curl-route.sh
+     32 Server IP: 10.10.0.56 
+     34 Server IP: 10.8.0.40 
+     34 Server IP: 10.9.0.30 
+[student@workstation ~]$ oc get hpa/loadtest
+NAME       REFERENCE             TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+loadtest   Deployment/loadtest   0%/50%    2         10        10         19m
+[student@workstation ~]$ oc delete project schedule-scale
+project.project.openshift.io "schedule-scale" deleted
+[student@workstation ~]$ lab schedule-scale finish
+
+Completing Guided Exercise: Scaling an Application
+
+ · Remove exercise files.......................................  SUCCESS
+ · Remove solution files.......................................  SUCCESS
+
+Please use start if you wish to do the exercise again.
+
+[student@workstation ~]$ 
+
+
+----------------------------------------------------------------------------09Nov22-------------------------
