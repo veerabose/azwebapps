@@ -7795,3 +7795,240 @@ Please use start if you wish to do the exercise again.
 
 
 ----------------------------------------------------------------------------09Nov22-------------------------
+
+LAB-Controlling Pod Scheduling - page-423
+
+[student@workstation ~]$ lab schedule-review start
+
+Checking prerequisites for Lab: Controlling Pod Scheduling
+
+ Verify the OpenShift cluster is running:
+ · Router pods are available...................................  SUCCESS
+ · OAuth pods are available....................................  SUCCESS
+ · API pods are available......................................  SUCCESS
+ · Control plane node 'master01' is ready......................  SUCCESS
+ · Control plane node 'master02' is ready......................  SUCCESS
+ · Control plane node 'master03' is ready......................  SUCCESS
+
+ Checking for conflicts with existing OpenShift projects:
+ · The 'schedule-review' project is absent.....................  SUCCESS
+ · The 'schedule-review-ts' project is absent..................  SUCCESS
+
+Setting up the classroom for Lab: Controlling Pod Scheduling
+
+ · Validate 'admin' can log in with password 'redhat'..........  SUCCESS
+ · Validate 'leader' can log in with password 'redhat'.........  SUCCESS
+ · Validate 'developer' can log in with password 'developer'...  SUCCESS
+
+ Preparing the student's cluster:
+ · Download exercise files.....................................  SUCCESS
+
+Overall start status...........................................  SUCCESS
+
+[student@workstation ~]$ oc login -u admin -p redhat https://api.ocp4.example.com:6443
+Login successful.
+
+You have access to 67 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "default".
+[student@workstation ~]$ oc get nodes -L tier
+NAME       STATUS   ROLES           AGE    VERSION           TIER
+master01   Ready    master,worker   104d   v1.23.3+e419edf   
+master02   Ready    master,worker   104d   v1.23.3+e419edf   
+master03   Ready    master,worker   104d   v1.23.3+e419edf   
+[student@workstation ~]$ oc label node master01 tier=gold
+node/master01 labeled
+[student@workstation ~]$ oc label node master02 tier=silver
+node/master02 labeled
+[student@workstation ~]$ oc get nodes -L tier
+NAME       STATUS   ROLES           AGE    VERSION           TIER
+master01   Ready    master,worker   104d   v1.23.3+e419edf   gold
+master02   Ready    master,worker   104d   v1.23.3+e419edf   silver
+master03   Ready    master,worker   104d   v1.23.3+e419edf   
+[student@workstation ~]$ oc login -u developer -p developer
+Login successful.
+
+You don't have any projects. You can try to create a new project, by running
+
+    oc new-project <projectname>
+
+[student@workstation ~]$ oc whoami
+developer
+[student@workstation ~]$ oc new-project schedule-review
+Now using project "schedule-review" on server "https://api.ocp4.example.com:6443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app rails-postgresql-example
+
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=k8s.gcr.io/e2e-test-images/agnhost:2.33 -- /agnhost serve-hostname
+
+[student@workstation ~]$ oc create deployment loadtest --dry-run=client --image quay.io/redhattraining/loadtest:v1.0 -o yaml > ~/DO280/labs/schedule-review/loadtest.yaml
+[student@workstation ~]$ vim !$
+[student@workstation ~]$ cat ~/DO280/labs/schedule-review/loadtest.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: loadtest
+  name: loadtest
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loadtest
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: loadtest
+    spec:
+      nodeSelector:
+        tier: silver      
+      containers:
+      - image: quay.io/redhattraining/loadtest:v1.0
+        name: loadtest
+        resources: 
+          requests:
+            cpu: "100m"
+            memory: 20Mi
+status: {}
+[student@workstation ~]$ oc create --save-config -f ~/DO280/labs/schedule-review/loadtest.yaml
+deployment.apps/loadtest created
+[student@workstation ~]$ oc get pods
+NAME                       READY   STATUS              RESTARTS   AGE
+loadtest-9447597bd-mfp7f   0/1     ContainerCreating   0          12s
+[student@workstation ~]$ oc get pods
+NAME                       READY   STATUS    RESTARTS   AGE
+loadtest-9447597bd-mfp7f   1/1     Running   0          48s
+[student@workstation ~]$ oc describe pod loadtest-9447597bd-mfp7f | grep -A2 Requests
+    Requests:
+      cpu:        100m
+      memory:     20Mi
+[student@workstation ~]$ oc expose deployment/loadtest --port 80 --target-port 8080
+service/loadtest exposed
+[student@workstation ~]$ oc expose service/loadtest --name loadtest
+route.route.openshift.io/loadtest exposed
+[[student@workstation ~]$ curl http://loadtest-schedule-review.apps.ocp4.example.com/api/loadtest/v1/healthz
+{"health":"ok"}
+[student@workstation ~]$ oc autoscale deployment/loadtest --name loadtest --min 2 --max 40 --cpu-percent 70
+horizontalpodautoscaler.autoscaling/loadtest autoscaled
+[student@workstation ~]$ oc get hpa
+NAME       REFERENCE             TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+loadtest   Deployment/loadtest   <unknown>/70%   2         40        0          4s
+[student@workstation ~]$ oc get hpa
+NAME       REFERENCE             TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+loadtest   Deployment/loadtest   0%/70%    2         40        2          38s
+[student@workstation ~]$ oc get routes
+NAME       HOST/PORT                                        PATH   SERVICES   PORT   TERMINATION   WILDCARD
+loadtest   loadtest-schedule-review.apps.ocp4.example.com          loadtest   8080                 None
+[student@workstation ~]$ curl http://loadtest-schedule-review.apps.ocp4.example.com/api/loadtest/v1/cpu/3
+[student@workstation ~]$ curl http://loadtest-schedule-review.apps.ocp4.example.com/api/loadtest/v1/cpu/3
+[student@workstation ~]$ oc get hpa
+NAME       REFERENCE             TARGETS     MINPODS   MAXPODS   REPLICAS   AGE
+loadtest   Deployment/loadtest   1656%/70%   2         40        4          2m40s
+[student@workstation ~]$ oc get pods
+NAME                       READY   STATUS    RESTARTS   AGE
+loadtest-9447597bd-849xw   1/1     Running   0          14s
+loadtest-9447597bd-bnh66   1/1     Running   0          2m30s
+loadtest-9447597bd-c7n58   1/1     Running   0          14s
+loadtest-9447597bd-f8s54   1/1     Running   0          29s
+loadtest-9447597bd-h45qg   1/1     Running   0          14s
+loadtest-9447597bd-mfp7f   1/1     Running   0          8m35s
+loadtest-9447597bd-vpfln   1/1     Running   0          14s
+loadtest-9447597bd-xgbkx   1/1     Running   0          29s
+[student@workstation ~]$ oc login -u admin -p redhat
+Login successful.
+
+You have access to 68 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "schedule-review".
+[student@workstation ~]$ oc create quota review-quota --hard cpu="1",memory="2G",pods="20"
+resourcequota/review-quota created
+[student@workstation ~]$ oc get quota
+NAME           AGE   REQUEST                                       LIMIT
+review-quota   7s    cpu: 2400m/1, memory: 480Mi/2G, pods: 24/20   
+[student@workstation ~]$ oc get pods
+NAME                       READY   STATUS    RESTARTS   AGE
+loadtest-9447597bd-22jsb   0/1     Pending   0          107s
+loadtest-9447597bd-6jjhh   1/1     Running   0          2m2s
+loadtest-9447597bd-849xw   1/1     Running   0          2m17s
+loadtest-9447597bd-87jf6   0/1     Pending   0          2m2s
+loadtest-9447597bd-9jjqw   0/1     Pending   0          107s
+loadtest-9447597bd-9zbdm   1/1     Running   0          2m2s
+loadtest-9447597bd-bnh66   1/1     Running   0          4m33s
+loadtest-9447597bd-c7n58   1/1     Running   0          2m17s
+loadtest-9447597bd-cg7q9   1/1     Running   0          2m2s
+loadtest-9447597bd-dfnz2   0/1     Pending   0          107s
+loadtest-9447597bd-dwdl7   1/1     Running   0          2m2s
+loadtest-9447597bd-f4tzj   0/1     Pending   0          107s
+loadtest-9447597bd-f8s54   1/1     Running   0          2m32s
+loadtest-9447597bd-fjk2n   1/1     Running   0          2m2s
+loadtest-9447597bd-fpzjz   1/1     Running   0          2m2s
+loadtest-9447597bd-g96vv   0/1     Pending   0          107s
+loadtest-9447597bd-h45qg   1/1     Running   0          2m17s
+loadtest-9447597bd-k5p5q   0/1     Pending   0          107s
+loadtest-9447597bd-mfp7f   1/1     Running   0          10m
+loadtest-9447597bd-ndws4   0/1     Pending   0          2m2s
+loadtest-9447597bd-trxtd   0/1     Pending   0          107s
+loadtest-9447597bd-vkdsl   0/1     Pending   0          107s
+loadtest-9447597bd-vpfln   1/1     Running   0          2m17s
+loadtest-9447597bd-xgbkx   1/1     Running   0          2m32s
+[student@workstation ~]$ lab schedule-review grade
+
+Grading the student's work for Lab: Controlling Pod Scheduling
+
+ · Worker node has label 'tier=gold'...........................  PASS
+ · Worker node has label 'tier=silver'.........................  PASS
+ · Project 'schedule-review' exists............................  PASS
+ · Application 'loadtest' exists...............................  PASS
+ · Route 'loadtest' exists for the 'loadtest' application......  PASS
+ · Application 'loadtest' responds to a curl request...........  PASS
+ · Application 'loadtest' specifies correct node selector......  PASS
+ · Application 'loadtest' requests correct CPU resources.......  PASS
+ · Application 'loadtest' requests correct memory resources....  PASS
+ · Horizontal pod autoscaler (HPA) 'loadtest' exists...........  PASS
+ · HPA 'loadtest' specifies correct pod minimum................  PASS
+ · HPA 'loadtest' specifies correct pod maximum................  PASS
+ · HPA 'loadtest' specifies correct CPU percentage.............  PASS
+ · Resource quota 'review-quota' exists........................  PASS
+ · Resource quota 'review-quota' sets correct CPU quota........  PASS
+ · Resource quota 'review-quota' sets correct memory quota.....  PASS
+ · Resource quota 'review-quota' sets correct pod quota........  PASS
+
+Overall exercise grade.........................................  PASS
+
+[student@workstation ~]$ lab schedule-review finish
+
+Completing Lab: Controlling Pod Scheduling
+
+ · Delete OpenShift project 'schedule-review'..................  SUCCESS
+ · Wait for project 'schedule-review' to be gone...............  SUCCESS
+ · Remove exercise files.......................................  SUCCESS
+ · Remove 'tier' label from worker nodes.......................  SUCCESS
+
+Please use start if you wish to do the exercise again.
+
+[student@workstation ~]$ 
+
+Summary
+--------
+In this chapter, you learned:
+• The default pod scheduler uses regions and zones to achieve both performance and redundancy.
+• Labeling nodes and using node selectors influences pod placement.
+• Resource requests define the minimum amount of resources a pod needs in order to be
+scheduled.
+• Quotas restrict the amount of resources a project is allowed to consume.
+• A customized project template can automatically create quotas and limit ranges for new
+projects.
+• The oc scale command manually scales the number of replicas of a pod.
+• Horizontal pod autoscalers dynamically scale pod replicas based on load.
+
+---------------------------------------------------------------------------10Nov2022 -----------------------
+
+
+
