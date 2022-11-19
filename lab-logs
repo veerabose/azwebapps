@@ -8028,7 +8028,405 @@ projects.
 • The oc scale command manually scales the number of replicas of a pod.
 • Horizontal pod autoscalers dynamically scale pod replicas based on load.
 
----------------------------------------------------------------------------10Nov2022 -----------------------
+---------------------------------------------------------------------------19Nov2022 -----------------------
+Chapter 16 | Comprehensive Review
+Troubleshoot an OpenShift Cluster and Applications
+
+[student@workstation ~]$ lab review-troubleshoot start
+
+Checking prerequisites for Lab: Troubleshoot an OpenShift Cluster and Applications
+
+ Verify the OpenShift cluster is running:
+ · Router pods are available...................................  SUCCESS
+ · OAuth pods are available....................................  SUCCESS
+ · API pods are available......................................  SUCCESS
+ · Control plane node 'master01' is ready......................  SUCCESS
+ · Control plane node 'master02' is ready......................  SUCCESS
+ · Control plane node 'master03' is ready......................  SUCCESS
+ Checking for conflicts with existing OpenShift projects:
+ · The 'review-troubleshoot' project is absent.................  SUCCESS
+
+Setting up the classroom for Lab: Troubleshoot an OpenShift Cluster and Applications
+
+ Restoring authentication settings to installation defaults:
+ · Removing 'cluster-admin' role from the 'admin' user.........  SUCCESS
+ · Remove HTPasswd secret: 'htpasswd-secret'...................  SUCCESS
+ · Remove all configured Identity Providers....................  SUCCESS
+ · Remove all existing users...................................  SUCCESS
+ · Remove all existing identities..............................  SUCCESS
+ · Download exercise files.....................................  SUCCESS
+
+Overall start status...........................................  SUCCESS
+
+[student@workstation ~]$ source /usr/local/etc/ocp4.config
+[student@workstation ~]$ oc login -u kubeadmin -p ${RHT_OCP4_KUBEADM_PASSWD}  https://api.ocp4.example.com:6443
+Login successful.
+
+You have access to 68 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "default".
+[student@workstation ~]$ oc new-project review-troubleshoot
+Now using project "review-troubleshoot" on server "https://api.ocp4.example.com:6443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app rails-postgresql-example
+
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=k8s.gcr.io/e2e-test-images/agnhost:2.33 -- /agnhost serve-hostname
+
+[student@workstation ~]$ oc new-app --name hello-world-nginx https://github.com/RedHatTraining/DO280-apps --context-dir hello-world-nginx
+--> Found container image 11f9dba (3 years old) from registry.access.redhat.com for "registry.access.redhat.com/ubi8:8.0"
+
+    Red Hat Universal Base Image 8 
+    ------------------------------ 
+    The Universal Base Image is designed and engineered to be the base layer for all of your containerized applications, middleware and utilities. This base image is freely redistributable, but Red Hat only supports Red Hat technologies through subscriptions for Red Hat products. This image is maintained by Red Hat and updated regularly.
+
+    Tags: base rhel8
+
+    * An image stream tag will be created as "ubi8:8.0" that will track the source image
+    * A Docker build using source code from https://github.com/RedHatTraining/DO280-apps will be created
+      * The resulting image will be pushed to image stream tag "hello-world-nginx:latest"
+      * Every time "ubi8:8.0" changes a new build will be triggered
+
+--> Creating resources ...
+    imagestream.image.openshift.io "ubi8" created
+    imagestream.image.openshift.io "hello-world-nginx" created
+    buildconfig.build.openshift.io "hello-world-nginx" created
+    deployment.apps "hello-world-nginx" created
+    service "hello-world-nginx" created
+--> Success
+    Build scheduled, use 'oc logs -f buildconfig/hello-world-nginx' to track its progress.
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose service/hello-world-nginx' 
+    Run 'oc status' to view your app.
+[student@workstation ~]$ oc expose service hello-world-nginx --hostname hello-world.apps.ocp4.example.com
+route.route.openshift.io/hello-world-nginx exposed
+[student@workstation ~]$ oc get pods
+NAME                                 READY   STATUS      RESTARTS   AGE
+hello-world-nginx-1-build            0/1     Completed   0          57s
+hello-world-nginx-77b8f648c4-klnlm   1/1     Running     0          9s
+[student@workstation ~]$ curl -s "http://hello-world.apps.ocp4.example.com" | grep -i Hello
+    <h1>Hello, world from nginx!</h1>
+[student@workstation ~]$ touch /tmp/cluster-users
+[student@workstation ~]$ for USER in admin leader developer qa-engineer; do htpasswd -B -b /tmp/cluster-users "${USER}" review; done
+Adding password for user admin
+Adding password for user leader
+Adding password for user developer
+Adding password for user qa-engineer
+[student@workstation ~]$ oc create secret generic compreview-users --from-file htpasswd=/tmp/cluster-users -n openshift-config
+secret/compreview-users created
+[student@workstation ~]$ oc get oauth cluster -o yaml > /tmp/oauth.yaml
+[student@workstation ~]$ vi /tmp/oauth.yaml 
+[student@workstation ~]$ oc replace -f /tmp/oauth.yaml
+oauth.config.openshift.io/cluster replaced
+[student@workstation ~]$ oc get pods --all-namespaces | grep -i oauth
+openshift-authentication                           oauth-openshift-77f4d6998b-fnhdq                             0/1     Pending       0             26s
+openshift-authentication                           oauth-openshift-77f4d6998b-pzg8q                             1/1     Running       0             54s
+openshift-authentication                           oauth-openshift-c4b75464b-2nggb                              1/1     Running       0             21m
+openshift-authentication                           oauth-openshift-c4b75464b-vz42z                              0/1     Terminating   0             22m
+openshift-oauth-apiserver                          apiserver-d4dddf5fc-9v4tb                                    1/1     Running       3             114d
+openshift-oauth-apiserver                          apiserver-d4dddf5fc-rdxd6                                    1/1     Running       3             114d
+openshift-oauth-apiserver                          apiserver-d4dddf5fc-tjz9h                                    1/1     Running       3             114d
+[student@workstation ~]$ oc adm policy add-cluster-role-to-user cluster-admin admin
+Warning: User 'admin' not found
+clusterrole.rbac.authorization.k8s.io/cluster-admin added: "admin"
+[student@workstation ~]$ oc get pods -n openshift-authentication
+NAME                               READY   STATUS    RESTARTS   AGE
+oauth-openshift-77f4d6998b-dxzhw   1/1     Running   0          77s
+oauth-openshift-77f4d6998b-fnhdq   1/1     Running   0          107s
+oauth-openshift-77f4d6998b-pzg8q   1/1     Running   0          2m15s
+[student@workstation ~]$ oc login -u admin -p review
+Login successful.
+
+You have access to 69 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "review-troubleshoot".
+[student@workstation ~]$ for GROUP in leaders developers qa; do oc adm groups new "${GROUP}"; done
+group.user.openshift.io/leaders created
+group.user.openshift.io/developers created
+group.user.openshift.io/qa created
+[student@workstation ~]$ oc adm groups add-users leaders leader
+group.user.openshift.io/leaders added: "leader"
+[student@workstation ~]$ oc adm groups add-users developers developer
+group.user.openshift.io/developers added: "developer"
+[student@workstation ~]$ oc adm groups add-users qa qa-engineer
+group.user.openshift.io/qa added: "qa-engineer"
+[student@workstation ~]$ oc adm policy add-cluster-role-to-group self-provisioner leaders
+clusterrole.rbac.authorization.k8s.io/self-provisioner added: "leaders"
+[student@workstation ~]$ oc adm policy remove-cluster-role-from-group self-provisioner system:authenticated:oauth
+Warning: Your changes may get lost whenever a master is restarted, unless you prevent reconciliation of this rolebinding using the following command: oc annotate clusterrolebinding.rbac self-provisioners 'rbac.authorization.kubernetes.io/autoupdate=false' --overwrite
+clusterrole.rbac.authorization.k8s.io/self-provisioner removed: "system:authenticated:oauth"
+[student@workstation ~]$ oc policy add-role-to-group edit developer
+Warning: Group 'developer' not found
+clusterrole.rbac.authorization.k8s.io/edit added: "developer"
+[student@workstation ~]$ oc policy add-role-to-group edit developers
+clusterrole.rbac.authorization.k8s.io/edit added: "developers"
+[student@workstation ~]$ oc policy add-role-to-group view qa
+clusterrole.rbac.authorization.k8s.io/view added: "qa"
+[student@workstation ~]$ oc login -u delveloper -p review
+Login failed (401 Unauthorized)
+Verify you have provided correct credentials.
+[student@workstation ~]$ oc login -u developer -p review
+Login successful.
+
+You have one project on this server: "review-troubleshoot"
+
+Using project "review-troubleshoot".
+[student@workstation ~]$ oc new-app --name mysql --image registery.redhat.io/rhel8/mysql-80:1-139
+W1119 13:56:59.314616    4450 dockerimagelookup.go:297] container image remote registry lookup failed: registery.redhat.io/rhel8/mysql-80:1-139: Get "https://registery.redhat.io/v2/": dial tcp: lookup registery.redhat.io on 172.30.0.10:53: no such host
+error: unable to locate any local docker images with name "registery.redhat.io/rhel8/mysql-80:1-139"
+
+The 'oc new-app' command will match arguments to the following types:
+
+  1. Images tagged into image streams in the current project or the 'openshift' project
+     - if you don't specify a tag, we'll add ':latest'
+  2. Images in the container storage, on remote registries, or on the local container engine
+  3. Templates in the current project or the 'openshift' project
+  4. Git repository URLs or local paths that point to Git repositories
+
+--allow-missing-images can be used to point to an image that does not exist yet.
+
+See 'oc new-app -h' for examples.
+[student@workstation ~]$ oc new-app --name mysql --image registry.redhat.io/rhel8/mysql-80:1-139
+--> Found container image a2a7718 (17 months old) from registry.redhat.io for "registry.redhat.io/rhel8/mysql-80:1-139"
+
+    MySQL 8.0 
+    --------- 
+    MySQL is a multi-user, multi-threaded SQL database server. The container image provides a containerized packaging of the MySQL mysqld daemon and client application. The mysqld server daemon accepts connections from clients and provides access to content from MySQL databases on behalf of the clients.
+
+    Tags: database, mysql, mysql80, mysql-80
+
+    * An image stream tag will be created as "mysql:1-139" that will track this image
+
+--> Creating resources ...
+    imagestream.image.openshift.io "mysql" created
+    deployment.apps "mysql" created
+    service "mysql" created
+--> Success
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose service/mysql' 
+    Run 'oc status' to view your app.
+[student@workstation ~]$ oc create secret generic mysql --from-literal password=r3dh4t123
+secret/mysql created
+[student@workstation ~]$ oc set env deployment mysql --prefix MYSQL_ROOT_ --from secret/mysql
+deployment.apps/mysql updated
+[student@workstation ~]$ oc set volumes deployment/mysql --name mysql-storage --add --type pvc --claim-size 2Gi --claim-mode rwo --mount-path /var/lib/mysql/data
+deployment.apps/mysql volume updated
+[student@workstation ~]$ oc get pods -l deployment=mysql
+NAME                     READY   STATUS    RESTARTS   AGE
+mysql-7bb75d6545-46mb2   1/1     Running   0          23s
+[student@workstation ~]$ oc get pvc
+NAME        STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+pvc-n88p6   Bound    pvc-809591c9-caf9-4217-9073-4c4b6f564d7c   2Gi        RWO            nfs-storage    38s
+[student@workstation ~]$ oc exce -it mysql-7bb75d6545-46mb2 -- df -h /var/lib/mysql/data
+error: unknown command "exce" for "oc"
+
+Did you mean this?
+	exec
+[student@workstation ~]$ oc exec -it mysql-7bb75d6545-46mb2 -- df -h /var/lib/mysql/data
+Filesystem                                                                                           Size  Used Avail Use% Mounted on
+192.168.50.254:/exports-ocp4/review-troubleshoot-pvc-n88p6-pvc-809591c9-caf9-4217-9073-4c4b6f564d7c   40G  1.1G   39G   3% /var/lib/mysql/data
+[student@workstation ~]$ oc new-app --name wordpress --image quay.io/redhattraining/wordpress:5.7-php7.4-apache -e WORDPRESS_DB_HOST=mysql -e WORDPRESS_DB_NAME=wordpress -e WORDPRESS_DB_USER=root -e WORDPRESS_USER=wpuser -e WORDPRESS_PASSWORD=wppass -e WORDPRESS_TITLE=review-troubleshoot -e WORDPRESS_URL=wordpress.apps.ocp4.example.com -e WORDPRESS_EMAIL=student@redhat.com
+--> Found container image 4d3c70b (16 months old) from quay.io for "quay.io/redhattraining/wordpress:5.7-php7.4-apache"
+
+    * An image stream tag will be created as "wordpress:5.7-php7.4-apache" that will track this image
+
+--> Creating resources ...
+    imagestream.image.openshift.io "wordpress" created
+    deployment.apps "wordpress" created
+    service "wordpress" created
+--> Success
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose service/wordpress' 
+    Run 'oc status' to view your app.
+[student@workstation ~]$ oc set env deployment/wordpress --prefix WORDPRESS_DB_ --from secret/mysql
+deployment.apps/wordpress updated
+[student@workstation ~]$ oc create serviceaccount wordpress-sa
+serviceaccount/wordpress-sa created
+[student@workstation ~]$ oc login -u admin -p review
+Login successful.
+
+You have access to 69 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "review-troubleshoot".
+[student@workstation ~]$ oc adm policy add-scc-to-user anyuid -z wordpress-sa
+clusterrole.rbac.authorization.k8s.io/system:openshift:scc:anyuid added: "wordpress-sa"
+[student@workstation ~]$ oc login -u developer -p review
+Login successful.
+
+You have one project on this server: "review-troubleshoot"
+
+Using project "review-troubleshoot".
+[student@workstation ~]$ oc set serviceaccount deployment/wordpress wordpress-sa
+deployment.apps/wordpress serviceaccount updated
+[student@workstation ~]$ oc get pods -l deployment=mysql
+NAME                     READY   STATUS    RESTARTS   AGE
+mysql-7bb75d6545-46mb2   1/1     Running   0          7m6s
+[student@workstation ~]$ oc exec mysql-7bb75d6545-46mb2 -- /usr/bin/mysql -uroot -e "CREATE DATABASE wordpress"
+[student@workstation ~]$ oc expose service wordpress --hostname wordpress.apps.ocp4.example.com
+route.route.openshift.io/wordpress exposed
+[student@workstation ~]$ ~/DO280/labs/review-troubleshoot/deploy_famous-quotes.sh
+Creating famous-quotes database
+Deploying famous-quotes application
+deployment.apps/famous-quotes created
+service/famous-quotes created
+[student@workstation ~]$ cat ~/DO280/labs/review-troubleshoot/deploy_famous-quotes.sh
+#!/usr/bin/bash
+PROJECT="review-troubleshoot"
+
+# Identify the mysql pod
+if [ $(oc get pods -l deploymentconfig=mysql -n ${PROJECT} -o name | wc -l) -eq 1 ]
+then
+  # mysql application was created as a deploymentconfig
+  MYPOD=$(oc get pods -l deploymentconfig=mysql -n ${PROJECT} -o template --template '{{range .items}}{{.metadata.name}}{{end}}')
+elif [ $(oc get pods -l deployment=mysql -n ${PROJECT} -o name | wc -l) -eq 1 ]
+then
+  # mysql application was created as a deployment
+  MYPOD=$(oc get pods -l deployment=mysql -n ${PROJECT} -o template --template '{{range .items}}{{.metadata.name}}{{end}}')
+fi
+
+# Check if the "defaultdb" database already exists
+if ! oc exec ${MYPOD} -n ${PROJECT} -- /usr/bin/mysql -u root -e 'show databases;' | grep -q defaultdb
+then
+  echo "Creating famous-quotes database"
+  oc exec ${MYPOD} -n ${PROJECT} -- /usr/bin/mysql -u root -e 'CREATE DATABASE defaultdb'
+fi
+
+echo "Deploying famous-quotes application"
+
+oc apply -f /home/student/DO280/labs/${PROJECT}/famous-quotes.yaml
+[student@workstation ~]$ oc set env deployment famous-quotes --prefix QUOTES_ --from secret/mysql
+deployment.apps/famous-quotes updated
+[student@workstation ~]$ oc get pods -l app=famous-quotes
+NAME                             READY   STATUS    RESTARTS   AGE
+famous-quotes-5c548b49bb-xch6g   0/1     Pending   0          63s
+[student@workstation ~]$ oc get events --sort-by='{.lastTimestamp}' | grep -i Scheduling
+15m         Warning   FailedScheduling               pod/mysql-7bb75d6545-46mb2                0/3 nodes are available: 3 pod has unbound immediate PersistentVolumeClaims.
+16s         Warning   FailedScheduling               pod/famous-quotes-5c548b49bb-xch6g        0/3 nodes are available: 3 node(s) didn't match Pod's node affinity/selector.
+[student@workstation ~]$ oc get deployment/famous-quotes -o yaml > /tmp/famous-deploy.yaml
+[student@workstation ~]$ vi /tmp/famous-deploy.yaml 
+[student@workstation ~]$ grep -i nodeSelector -A1 /tmp/famous-deploy.yaml 
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"labels":{"app":"famous-quotes"},"name":"famous-quotes","namespace":"review-troubleshoot"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"famous-quotes","deployment":"famous-quotes"}},"strategy":{"activeDeadlineSeconds":21600,"resources":{},"rollingParams":{"intervalSeconds":1,"maxSurge":"25%","maxUnavailable":"25%","timeoutSeconds":600,"updatePeriodSeconds":1},"type":"RollingUpdate"},"template":{"metadata":{"annotations":{"openshift.io/generated-by":"OpenShiftNewApp"},"creationTimestamp":null,"labels":{"app":"famous-quotes","deployment":"famous-quotes"}},"spec":{"containers":[{"env":[{"name":"QUOTES_DATABASE","value":"defaultdb"},{"name":"QUOTES_HOSTNAME","value":"mysql"},{"name":"QUOTES_USER","value":"root"},{"name":"QUOTES_PASSWORD","valueFrom":{"secretKeyRef":{"key":"password","name":"mysql"}}}],"image":"quay.io/redhattraining/famous-quotes:2.1","imagePullPolicy":"IfNotPresent","name":"famous-quotes","ports":[{"containerPort":8000,"protocol":"TCP"}],"resources":{},"terminationMessagePath":"/dev/termination-log","terminationMessagePolicy":"File"}],"dnsPolicy":"ClusterFirst","nodeSelector":{"env":"quotes"},"restartPolicy":"Always","schedulerName":"default-scheduler","securityContext":{},"terminationGracePeriodSeconds":30}},"test":false}}
+  creationTimestamp: "2022-11-19T19:14:06Z"
+--
+      nodeSelector:
+        env: quotes
+[student@workstation ~]$ vi /tmp/famous-deploy.yaml 
+[student@workstation ~]$ grep -i nodeSelector -A1 /tmp/famous-deploy.yaml 
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"labels":{"app":"famous-quotes"},"name":"famous-quotes","namespace":"review-troubleshoot"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"famous-quotes","deployment":"famous-quotes"}},"strategy":{"activeDeadlineSeconds":21600,"resources":{},"rollingParams":{"intervalSeconds":1,"maxSurge":"25%","maxUnavailable":"25%","timeoutSeconds":600,"updatePeriodSeconds":1},"type":"RollingUpdate"},"template":{"metadata":{"annotations":{"openshift.io/generated-by":"OpenShiftNewApp"},"creationTimestamp":null,"labels":{"app":"famous-quotes","deployment":"famous-quotes"}},"spec":{"containers":[{"env":[{"name":"QUOTES_DATABASE","value":"defaultdb"},{"name":"QUOTES_HOSTNAME","value":"mysql"},{"name":"QUOTES_USER","value":"root"},{"name":"QUOTES_PASSWORD","valueFrom":{"secretKeyRef":{"key":"password","name":"mysql"}}}],"image":"quay.io/redhattraining/famous-quotes:2.1","imagePullPolicy":"IfNotPresent","name":"famous-quotes","ports":[{"containerPort":8000,"protocol":"TCP"}],"resources":{},"terminationMessagePath":"/dev/termination-log","terminationMessagePolicy":"File"}],"dnsPolicy":"ClusterFirst","nodeSelector":{"env":"quotes"},"restartPolicy":"Always","schedulerName":"default-scheduler","securityContext":{},"terminationGracePeriodSeconds":30}},"test":false}}
+  creationTimestamp: "2022-11-19T19:14:06Z"
+[student@workstation ~]$ oc replace -f /tmp/famous-deploy.yaml
+deployment.apps/famous-quotes replaced
+[student@workstation ~]$ oc get pods -l app=famous-quotes
+NAME                             READY   STATUS              RESTARTS   AGE
+famous-quotes-5c548b49bb-xch6g   0/1     Pending             0          5m23s
+famous-quotes-6c49844587-qv24k   0/1     ContainerCreating   0          17s
+[student@workstation ~]$ oc get pods -l app=famous-quotes
+NAME                             READY   STATUS    RESTARTS   AGE
+famous-quotes-6c49844587-qv24k   1/1     Running   0          37s
+[student@workstation ~]$ oc expose service famous-quotes --hostname quotes.apps.ocp4.example.com
+route.route.openshift.io/famous-quotes exposed
+[student@workstation ~]$ curl -s "http://quotes.apps.ocp4.example.com" | egrep '</?title>'
+        <title>Quotes</title>
+[student@workstation ~]$ lab review-troubleshoot grade
+
+Grading the student's work for Lab: Troubleshoot an OpenShift Cluster and Applications
+
+ · The 'review-troubleshoot' project exists....................  PASS
+
+ Hello World Application
+ · The 'hello-world-nginx' application created as a 'deployment
+   '...........................................................  PASS
+ · The 'hello-world-nginx' application responds to external req
+   uests.......................................................  PASS
+
+ Identity Provider Configuration and Users
+ · The 'cluster-users' identity provider exists................  PASS
+ · The 'compreview-users' secret exists........................  PASS
+ · The identity provider uses the 'compreview-users' secret....  PASS
+
+ User Groups and Roles
+ · The 'admin' user can log in with a password of 'review'.....  PASS
+ · The 'admin' user has the 'cluster-admin' cluster role.......  PASS
+
+ · The 'leaders' group exists..................................  PASS
+ · The 'leaders' group contains the 'leader' user..............  PASS
+ · The 'leader' user can log in with a password of 'review'....  PASS
+ · The 'leaders' group has the 'self-provisioner' cluster role.  PASS
+
+ · The 'self-provisioner' cluster role has been removed from th
+   e 'system:authenticated:oauth' group........................  PASS
+
+ · The 'developers' group exists...............................  PASS
+ · The 'developers' group contains the 'developer' user........  PASS
+ · The 'developer' user can log in with a password of 'review'.  PASS
+ · The 'developers' group has the 'edit' role on the 'review-tr
+   oubleshoot' project.........................................  PASS
+
+ · The 'qa' group exists.......................................  PASS
+ · The 'qa' group contains the 'qa-engineer' user..............  PASS
+ · The 'qa-engineer' user can log in with a password of 'review
+   '...........................................................  PASS
+ · The 'qa' group has the 'view' role on the 'review-troublesho
+   ot' project.................................................  PASS
+
+ MySQL Database Application Configuration
+ · The 'mysql' database application created as a 'deployment'..  PASS
+ · The 'mysql' secret exists...................................  PASS
+ · The 'MYSQL_ROOT_PASSWORD' environment variable is set from t
+   he 'mysql' secret...........................................  PASS
+ · deployment.apps/mysql mounts a volume to '/var/lib/mysql/dat
+   a'..........................................................  PASS
+ · deployment.apps/mysql uses a PVC with a size of '2' GB......  PASS
+ · deployment.apps/mysql uses a PVC with the 'ReadWriteOnce' mo
+   de..........................................................  PASS
+
+ Wordpress Application Configuration
+ · The 'wordpress' application created as a 'deployment'.......  PASS
+ · The 'wordpress-sa' service account exists...................  PASS
+ · The 'wordpress-sa' service account uses the 'anyuid' SCC....  PASS
+ · The 'wordpress' application uses the 'wordpress-sa' service 
+   account.....................................................  PASS
+ · The 'wordpress' application uses the 'anyuid' security conte
+   xt constraint...............................................  PASS
+ · The 'WORDPRESS_DB_PASSWORD' environment variable is set from
+   the 'mysql' secret..........................................  PASS
+ · The 'wordpress' application responds to exteral requests....  PASS
+
+ Famous Quotes App Configuration
+ · The 'famous-quotes' application created as a 'deployment'...  PASS
+ · The 'famous-quotes' application does not specify a node sele
+   ctor........................................................  PASS
+ · The 'famous-quotes' application responds to exteral requests
+   ............................................................  PASS
+
+Overall exercise grade.........................................  PASS
+
+[student@workstation ~]$ lab review-troubleshoot finish
+
+Completing Lab: Troubleshoot an OpenShift Cluster and Applications
+
+ Restoring authentication settings to installation defaults:
+ · Removing 'cluster-admin' role from the 'admin' user.........  SUCCESS
+ · Remove HTPasswd secret: 'compreview-users'..................  SUCCESS
+ · Remove all configured Identity Providers....................  SUCCESS
+ · Remove all existing users...................................  SUCCESS
+ · Remove all existing groups..................................  SUCCESS
+ · Remove all existing identities..............................  SUCCESS
+ · Delete OpenShift project 'review-troubleshoot'..............  SUCCESS
+ · Wait for project 'review-troubleshoot' to be gone...........  SUCCESS
+ · Remove exercise files.......................................  SUCCESS
+ · Removing 'self-provisioner' role from group 'leaders'.......  SUCCESS
+ · Restoring cluster privileges................................  SUCCESS
+ · Removing the 'anyuid' SCC cluster role binding..............  SUCCESS
+
+Please use start if you wish to do the exercise again.
+
+[student@workstation ~]$ 
+------------------------------------------------------20Nov2022------------------------------
+
 
 
 
